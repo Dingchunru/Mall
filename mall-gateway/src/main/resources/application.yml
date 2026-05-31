@@ -1,0 +1,142 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: mall-gateway
+  profiles:
+    active: dev
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # 认证服务路由
+        - id: mall-auth
+          uri: lb://mall-auth
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+        
+        # 用户服务路由
+        - id: mall-user
+          uri: lb://mall-user
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1
+            - name: JwtAuthentication
+            - name: Logging
+              args:
+                logHeaders: true
+        
+        # 商品服务路由
+        - id: mall-product
+          uri: lb://mall-product
+          predicates:
+            - Path=/api/product/**
+            - name: Custom
+              args:
+                startTime: "00:00"
+                endTime: "23:59"
+                version: v1
+          filters:
+            - StripPrefix=1
+            - name: JwtAuthentication
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+        
+        # 订单服务路由
+        - id: mall-order
+          uri: lb://mall-order
+          predicates:
+            - Path=/api/order/**
+          filters:
+            - StripPrefix=1
+            - name: JwtAuthentication
+            - name: Retry=3
+        
+        # 购物车服务路由
+        - id: mall-cart
+          uri: lb://mall-cart
+          predicates:
+            - Path=/api/cart/**
+          filters:
+            - StripPrefix=1
+            - name: JwtAuthentication
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                redis-rate-limiter.replenishRate: 3
+                redis-rate-limiter.burstCapacity: 5
+        
+        # 秒杀服务路由
+        - id: mall-seckill
+          uri: lb://mall-seckill
+          predicates:
+            - Path=/api/seckill/**
+            - After=2024-01-01T00:00:00+08:00[Asia/Shanghai]
+          filters:
+            - StripPrefix=1
+            - name: JwtAuthentication
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 1
+        
+        # 搜索服务路由
+        - id: mall-search
+          uri: lb://mall-search
+          predicates:
+            - Path=/api/search/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+      
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+      
+      default-filters:
+        - name: Retry
+          args:
+            retries: 3
+            statuses: BAD_GATEWAY
+        - name: AddResponseHeader
+          args:
+            name: X-Response-Time
+            value: ${current.time}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    gateway:
+      enabled: true
+
+logging:
+  level:
+    com.mall.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
+    org.springframework.web: INFO

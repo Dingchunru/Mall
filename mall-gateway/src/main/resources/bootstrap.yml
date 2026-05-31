@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: mall-gateway
+  cloud:
+    nacos:
+      config:
+        server-addr: localhost:8848
+        file-extension: yaml
+        namespace: dev
+        group: MALL_GROUP
+        refresh-enabled: true
+      discovery:
+        server-addr: localhost:8848
+        namespace: dev
+        group: MALL_GROUP

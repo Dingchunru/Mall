@@ -1,42 +1,26 @@
 server:
-  port: 8084
+  port: 8085
 
 spring:
   application:
     name: mall-cart
-  
-  # Redis配置
-  redis:
-    host: localhost
-    port: 6379
-    database: 0
-    timeout: 5000ms
-    lettuce:
-      pool:
-        max-active: 8
-        max-idle: 8
-        min-idle: 0
-        max-wait: -1ms
-
-  # 数据源配置（可选，如果不需要数据库可以省略）
-  datasource:
-    url: jdbc:mysql://localhost:3306/mall_cart?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
-    username: root
-    password: root
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
-# Nacos配置
-spring:
   cloud:
     nacos:
       discovery:
         server-addr: localhost:8848
-        namespace: public
-        group: DEFAULT_GROUP
+        namespace: dev
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://dingchunru.cn:3306/mall_cart?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 7259.Dcr.
+  redis:
+    host: dingchunru.cn
+    port: 6379
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
 
-# 日志配置
 logging:
   level:
     com.mall.cart: debug
-  pattern:
-    console: '%d{yyyy-MM-dd HH:mm:ss} - %msg%n'

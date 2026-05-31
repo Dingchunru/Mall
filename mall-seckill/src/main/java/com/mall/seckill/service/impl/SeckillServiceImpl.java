@@ -7,7 +7,7 @@ import com.mall.seckill.entity.SeckillProduct;
 import com.mall.seckill.mapper.SeckillProductMapper;
 import com.mall.seckill.service.SeckillService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -23,19 +23,20 @@ public class SeckillServiceImpl implements SeckillService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
-    
+
     @Autowired
-    private RabbitTemplate rabbitTemplate;
-    
+    private RocketMQTemplate rocketMQTemplate;
+
     @Autowired
     private SeckillProductMapper seckillProductMapper;
 
+    private static final String SECKILL_TOPIC = "seckill-topic";
+
     @Override
     public List<SeckillProduct> getCurrentSeckillProducts() {
-        // 从数据库查询当前正在进行的秒杀商品
         LocalDateTime now = LocalDateTime.now();
         List<SeckillProduct> allProducts = seckillProductMapper.selectList(null);
-        
+
         return allProducts.stream()
                 .filter(p -> p.getStartTime().isBefore(now) && p.getEndTime().isAfter(now) && p.getStatus() == 1)
                 .collect(Collectors.toList());
@@ -53,44 +54,44 @@ public class SeckillServiceImpl implements SeckillService {
         if (seckillProduct == null) {
             throw new BusinessException(400, "秒杀商品不存在");
         }
-        
+
         // 2. 检查是否在秒杀时间内
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(seckillProduct.getStartTime()) || now.isAfter(seckillProduct.getEndTime())) {
             throw new BusinessException(400, "不在秒杀时间内");
         }
-        
-        // 3. 检查用户是否已秒杀过（Redis分布式限流）
+
+        // 3. 检查用户是否已秒杀过
         String userKey = "seckill:user:" + seckillId + ":" + userId;
         Boolean hasSeckilled = redisTemplate.hasKey(userKey);
         if (Boolean.TRUE.equals(hasSeckilled)) {
             throw new BusinessException(400, "您已经参与过秒杀");
         }
-        
+
         // 4. Redis原子操作扣减库存
         String stockKey = "seckill:stock:" + seckillId;
         Long stock = redisTemplate.opsForValue().decrement(stockKey);
         if (stock == null || stock < 0) {
-            // 库存不足，回退
             redisTemplate.opsForValue().increment(stockKey);
             throw new BusinessException(400, "库存不足");
         }
-        
+
         // 5. 标记用户已秒杀
         redisTemplate.opsForValue().set(userKey, "1", 24, TimeUnit.HOURS);
-        
-        // 6. 发送消息到队列异步处理订单
+
+        // 6. 发送消息到 RocketMQ 异步处理订单
         SeckillMessage message = new SeckillMessage();
         message.setUserId(userId);
         message.setSeckillId(seckillId);
         message.setSeckillProduct(seckillProduct);
-        message.setTimestamp(System.currentTimeMillis());
-        rabbitTemplate.convertAndSend("seckill.exchange", "seckill.routing", message);
-        
+
+        rocketMQTemplate.syncSend(SECKILL_TOPIC, message);
+        log.info("秒杀消息已发送: userId={}, seckillId={}", userId, seckillId);
+
         // 7. 返回正在处理状态
         SeckillOrder order = new SeckillOrder();
         order.setSeckillId(seckillId);
-        order.setStatus(0); // 0-处理中
+        order.setStatus(0);
         return order;
     }
 
@@ -98,11 +99,11 @@ public class SeckillServiceImpl implements SeckillService {
     public String getSeckillResult(Long userId, Long seckillId) {
         String resultKey = "seckill:result:" + seckillId + ":" + userId;
         Object result = redisTemplate.opsForValue().get(resultKey);
-        
+
         if (result == null) {
-            return "processing"; // 处理中
+            return "processing";
         } else if (result instanceof String) {
-            return (String) result; // 返回订单号或失败信息
+            return (String) result;
         } else {
             return "failed";
         }

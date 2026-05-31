@@ -2,18 +2,28 @@ server:
   port: 8080
 
 spring:
+  main:
+    web-application-type: reactive
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration
   application:
     name: mall-gateway
   profiles:
     active: dev
   cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: dev
     gateway:
       discovery:
         locator:
           enabled: true
           lower-case-service-id: true
       routes:
-        # 认证服务路由
         - id: mall-auth
           uri: lb://mall-auth
           predicates:
@@ -25,8 +35,6 @@ spring:
                 key-resolver: "#{@ipKeyResolver}"
                 redis-rate-limiter.replenishRate: 10
                 redis-rate-limiter.burstCapacity: 20
-        
-        # 用户服务路由
         - id: mall-user
           uri: lb://mall-user
           predicates:
@@ -37,8 +45,6 @@ spring:
             - name: Logging
               args:
                 logHeaders: true
-        
-        # 商品服务路由
         - id: mall-product
           uri: lb://mall-product
           predicates:
@@ -56,8 +62,6 @@ spring:
                 key-resolver: "#{@userKeyResolver}"
                 redis-rate-limiter.replenishRate: 5
                 redis-rate-limiter.burstCapacity: 10
-        
-        # 订单服务路由
         - id: mall-order
           uri: lb://mall-order
           predicates:
@@ -65,9 +69,6 @@ spring:
           filters:
             - StripPrefix=1
             - name: JwtAuthentication
-            - name: Retry=3
-        
-        # 购物车服务路由
         - id: mall-cart
           uri: lb://mall-cart
           predicates:
@@ -80,8 +81,6 @@ spring:
                 key-resolver: "#{@userKeyResolver}"
                 redis-rate-limiter.replenishRate: 3
                 redis-rate-limiter.burstCapacity: 5
-        
-        # 秒杀服务路由
         - id: mall-seckill
           uri: lb://mall-seckill
           predicates:
@@ -95,8 +94,6 @@ spring:
                 key-resolver: "#{@userKeyResolver}"
                 redis-rate-limiter.replenishRate: 1
                 redis-rate-limiter.burstCapacity: 1
-        
-        # 搜索服务路由
         - id: mall-search
           uri: lb://mall-search
           predicates:
@@ -108,35 +105,23 @@ spring:
                 key-resolver: "#{@ipKeyResolver}"
                 redis-rate-limiter.replenishRate: 5
                 redis-rate-limiter.burstCapacity: 10
-      
       globalcors:
         cors-configurations:
           '[/**]':
             allowedOrigins: "*"
             allowedMethods: "*"
             allowedHeaders: "*"
-      
-      default-filters:
-        - name: Retry
-          args:
-            retries: 3
-            statuses: BAD_GATEWAY
-        - name: AddResponseHeader
-          args:
-            name: X-Response-Time
-            value: ${current.time}
+  redis:
+    host: dingchunru.cn
+    port: 6379
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info,gateway
-  endpoint:
-    gateway:
-      enabled: true
 
 logging:
   level:
     com.mall.gateway: DEBUG
     org.springframework.cloud.gateway: INFO
-    org.springframework.web: INFO

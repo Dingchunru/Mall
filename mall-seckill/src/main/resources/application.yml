@@ -1,9 +1,9 @@
 server:
-  port: 8082
+  port: 8086
 
 spring:
   application:
-    name: mall-product
+    name: mall-seckill
   profiles:
     active: dev
   cloud:
@@ -13,7 +13,7 @@ spring:
         namespace: dev
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://dingchunru.cn:3306/mall_product?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://dingchunru.cn:3306/mall_seckill?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 7259.Dcr.
   redis:
@@ -23,19 +23,28 @@ spring:
     pathmatch:
       matching-strategy: ant_path_matcher
 
+rocketmq:
+  name-server: dingchunru.cn:9876
+  producer:
+    group: mall-seckill-producer
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 3
+  consumer:
+    group: mall-seckill-consumer
+    pull-batch-size: 32
+    max-reconsume-times: 16
+
 mybatis-plus:
-  mapper-locations: classpath:mapper/*.xml
-  type-aliases-package: com.mall.product.entity
+  type-aliases-package: com.mall.seckill.entity
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
-      id-type: auto
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
 
 logging:
   level:
-    com.mall.product: debug
+    com.mall.seckill: debug

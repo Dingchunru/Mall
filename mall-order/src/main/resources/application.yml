@@ -1,4 +1,3 @@
-# application.yml
 server:
   port: 8084
 
@@ -7,43 +6,34 @@ spring:
     name: mall-order
   profiles:
     active: dev
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: dev
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/mall_order?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://dingchunru.cn:3306/mall_order?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: 123456
-    hikari:
-      minimum-idle: 5
-      maximum-pool-size: 20
-      idle-timeout: 30000
-      max-lifetime: 1800000
-      connection-timeout: 30000
+    password: 7259.Dcr.
   redis:
-    host: localhost
+    host: dingchunru.cn
     port: 6379
-    database: 0
-    timeout: 10000ms
-    lettuce:
-      pool:
-        max-active: 8
-        max-idle: 8
-        min-idle: 0
-  rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
-    virtual-host: /
-    publisher-confirm-type: correlated
-    publisher-returns: true
-    template:
-      mandatory: true
-    listener:
-      simple:
-        acknowledge-mode: manual
-        prefetch: 1
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
 
-# MyBatis-Plus配置
+rocketmq:
+  name-server: dingchunru.cn:9876
+  producer:
+    group: mall-order-producer
+    send-message-timeout: 3000
+    retry-times-when-send-failed: 3
+  consumer:
+    group: mall-order-consumer
+    pull-batch-size: 32
+    max-reconsume-times: 16
+
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.mall.order.entity
@@ -55,28 +45,8 @@ mybatis-plus:
       logic-not-delete-value: 0
   configuration:
     map-underscore-to-camel-case: true
-    cache-enabled: false
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
-# Feign配置
-feign:
-  sentinel:
-    enabled: true
-  client:
-    config:
-      default:
-        connect-timeout: 5000
-        read-timeout: 5000
-        logger-level: full
-
-# 日志配置
 logging:
   level:
     com.mall.order: debug
-    com.mall.order.feign: debug
-    com.mall.order.mapper: debug
-
-# 订单配置
-order:
-  timeout: 30  # 订单超时时间（分钟）
-  max-quantity: 10  # 单商品最大购买数量

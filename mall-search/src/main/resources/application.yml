@@ -1,39 +1,25 @@
-# application.yml
 server:
-  port: 8086
+  port: 8087
 
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
   application:
     name: mall-search
   profiles:
     active: dev
-  elasticsearch:
-    uris: http://localhost:9200
-    connection-timeout: 5s
-    socket-timeout: 30s
-    username: elastic
-    password: 123456
-
   cloud:
     nacos:
       discovery:
         server-addr: localhost:8848
-        namespace: public
-        group: MALL_GROUP
+        namespace: dev
+  elasticsearch:
+    uris: http://localhost:9200
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
 
-# Feign配置
-feign:
-  client:
-    config:
-      default:
-        connectTimeout: 5000
-        readTimeout: 5000
-        loggerLevel: full
-  circuitbreaker:
-    enabled: true
-
-# 日志配置
 logging:
   level:
     com.mall.search: debug
-    org.elasticsearch.client: debug

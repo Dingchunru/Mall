@@ -1,14 +1,29 @@
-spring:
-  profiles:
-    active: dev
-  application:
-    name: mall-auth
-
 server:
   port: 8081
 
+spring:
+  application:
+    name: mall-auth
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: dev
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://dingchunru.cn:3306/mall_auth?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 7259.Dcr.
+  redis:
+    host: dingchunru.cn
+    port: 6379
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
 mybatis-plus:
-  mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.mall.auth.entity
   configuration:
     map-underscore-to-camel-case: true

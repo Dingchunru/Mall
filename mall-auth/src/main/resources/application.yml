@@ -14,11 +14,12 @@ spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://dingchunru.cn:3306/mall_auth?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
+    username: dingchunru
     password: 7259.Dcr.
   redis:
     host: dingchunru.cn
     port: 6379
+    password: 7259.Dcr.
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher

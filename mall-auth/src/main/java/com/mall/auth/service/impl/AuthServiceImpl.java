@@ -139,7 +139,7 @@ public class AuthServiceImpl implements AuthService {
             return false;
         }
         
-        return jwtUtils.validateToken(token);
+        return jwtUtils.validateAccessToken(token);
     }
 
     @Override
@@ -154,7 +154,7 @@ public class AuthServiceImpl implements AuthService {
      */
     private LoginResponseDTO generateLoginResponse(User user) {
         // 生成访问令牌
-        String token = jwtUtils.generateToken(user.getId(), user.getUsername());
+        String token = jwtUtils.generateAccessToken(user.getId(), user.getUsername(), "ROLE_USER");
         
         // 生成刷新令牌
         String refreshToken = UUID.randomUUID().toString().replace("-", "");

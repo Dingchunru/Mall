@@ -2,6 +2,7 @@ package com.mall.gateway.filter;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mall.common.exception.ErrorCode;
 import com.mall.common.response.Result;
 import com.mall.common.utils.JwtUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -25,26 +26,36 @@ import java.util.List;
 
 @Slf4j
 @Component
-public class JwtAuthenticationGatewayFilterFactory extends 
+public class JwtAuthenticationGatewayFilterFactory extends
         AbstractGatewayFilterFactory<JwtAuthenticationGatewayFilterFactory.Config> {
 
     @Autowired
     private JwtUtils jwtUtils;
-    
+
     @Autowired
     private ObjectMapper objectMapper;
-    
+
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
-    
-    // 白名单路径
+
+    /**
+     * 白名单路径 - 不需要鉴权
+     */
     private static final List<String> WHITE_LIST = Arrays.asList(
-        "/auth/login",
-        "/auth/register",
-        "/auth/captcha",
-        "/product/list",
-        "/product/detail/**",
-        "/search/**",
-        "/actuator/health"
+            "/auth/login",
+            "/auth/register",
+            "/auth/captcha",
+            "/auth/refresh",
+            "/product/list",
+            "/product/detail/**",
+            "/search/**",
+            "/actuator/health",
+            "/doc.html",
+            "/webjars/**",
+            "/v2/api-docs/**",
+            "/v3/api-docs/**",
+            "/swagger-resources/**",
+            "/swagger-ui/**",
+            "/favicon.ico"
     );
 
     public JwtAuthenticationGatewayFilterFactory() {
@@ -52,81 +63,97 @@ public class JwtAuthenticationGatewayFilterFactory extends
     }
 
     @Override
+    public String name() {
+        return "JwtAuthentication";
+    }
+
+    @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
             String path = request.getURI().getPath();
-            
-            log.info("Request path: {}", path);
-            
-            // 检查是否是白名单路径
+
+            // 检查白名单
             if (isWhiteListed(path)) {
-                log.info("Path is white listed: {}", path);
+                log.debug("白名单路径，跳过鉴权: {}", path);
                 return chain.filter(exchange);
             }
 
-            // 获取token
-            String token = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-            
-            if (token == null || !token.startsWith("Bearer ")) {
-                log.warn("No valid token found for path: {}", path);
-                return unauthorizedResponse(exchange, "Missing or invalid token");
+            // 获取 Token
+            String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                log.warn("缺少或无效的Authorization头: {}", path);
+                return unauthorizedResponse(exchange, ErrorCode.UNAUTHORIZED.getCode(),
+                        ErrorCode.UNAUTHORIZED.getMessage());
             }
 
-            token = token.substring(7);
-            
-            // 验证token
-            if (!jwtUtils.validateToken(token)) {
-                log.warn("Invalid token for path: {}", path);
-                return unauthorizedResponse(exchange, "Invalid token");
+            String token = authHeader.substring(7);
+
+            // 验证 Token（使用新版 validateAccessToken）
+            if (!jwtUtils.validateAccessToken(token)) {
+                log.warn("Token验证失败: {}", path);
+                return unauthorizedResponse(exchange, ErrorCode.TOKEN_INVALID.getCode(),
+                        ErrorCode.TOKEN_INVALID.getMessage());
             }
 
+            // 解析用户信息
             try {
-                // 解析token并传递用户信息
-                var claims = jwtUtils.parseToken(token);
-                String userId = claims.get("userId").toString();
-                String username = claims.get("username").toString();
-                
-                log.info("User authenticated: userId={}, username={}", userId, username);
-                
-                // 将用户信息添加到请求头
+                Long userId = jwtUtils.getUserIdFromToken(token);
+                String username = jwtUtils.getUsernameFromToken(token);
+                String role = jwtUtils.getRoleFromToken(token);
+
+                log.debug("用户认证通过: userId={}, username={}, role={}, path={}",
+                        userId, username, role, path);
+
+                // 将用户信息传递到下游服务
                 ServerHttpRequest mutatedRequest = request.mutate()
-                        .header("X-User-Id", userId)
+                        .header("X-User-Id", String.valueOf(userId))
                         .header("X-Username", username)
+                        .header("X-User-Role", role != null ? role : "")
+                        .header("X-Trace-Id", exchange.getAttributeOrDefault("traceId", ""))
                         .build();
 
                 return chain.filter(exchange.mutate().request(mutatedRequest).build());
-                
+
             } catch (Exception e) {
-                log.error("Token parsing error", e);
-                return unauthorizedResponse(exchange, "Token parsing failed");
+                log.error("Token解析失败: {}", e.getMessage());
+                return unauthorizedResponse(exchange, ErrorCode.TOKEN_INVALID.getCode(),
+                        "Token解析失败");
             }
         };
     }
 
+    /**
+     * 判断路径是否在白名单中
+     */
     private boolean isWhiteListed(String path) {
         return WHITE_LIST.stream()
                 .anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
-    private Mono<Void> unauthorizedResponse(ServerWebExchange exchange, String message) {
+    /**
+     * 返回未授权响应
+     */
+    private Mono<Void> unauthorizedResponse(ServerWebExchange exchange, int code, String message) {
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(HttpStatus.UNAUTHORIZED);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-        
-        Result<?> result = Result.error(HttpStatus.UNAUTHORIZED.value(), message);
-        
+
+        Result<?> result = Result.error(code, message)
+                .path(exchange.getRequest().getURI().getPath());
+
         try {
             byte[] bits = objectMapper.writeValueAsString(result).getBytes(StandardCharsets.UTF_8);
             DataBuffer buffer = response.bufferFactory().wrap(bits);
             return response.writeWith(Mono.just(buffer));
         } catch (JsonProcessingException e) {
-            log.error("Error writing response", e);
+            log.error("写入响应失败", e);
             return response.setComplete();
         }
     }
 
     public static class Config {
-        // 配置属性
+        // 可扩展配置，如自定义白名单
     }
 }

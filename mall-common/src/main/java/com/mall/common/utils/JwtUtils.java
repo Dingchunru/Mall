@@ -1,10 +1,14 @@
 package com.mall.common.utils;
 
+import com.mall.common.exception.BusinessException;
+import com.mall.common.exception.ErrorCode;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
@@ -15,117 +19,183 @@ import java.util.Map;
 @Component
 public class JwtUtils {
 
-    @Value("${jwt.secret:mallSecretKey12345678901234567890}")
+    /**
+     * 密钥必须从外部配置注入，禁止硬编码默认值
+     * 生产环境应在 application-prod.yml 中配置，并通过环境变量或配置中心注入
+     * 密钥生成方式：openssl rand -base64 64
+     */
+    @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.expiration:86400000}")
-    private Long expiration;
+    @Value("${jwt.access-token-expiration:1800}")
+    private Long accessTokenExpiration;
 
-    @Value("${jwt.header:Authorization}")
-    private String header;
+    @Value("${jwt.refresh-token-expiration:604800}")
+    private Long refreshTokenExpiration;
 
-    @Value("${jwt.token-prefix:Bearer }")
-    private String tokenPrefix;
+    @Value("${jwt.issuer:mall-server}")
+    private String issuer;
 
-    /**
-     * 生成密钥
-     */
+    @Autowired(required = false)
+    private RedisUtils redisUtils;
+
+    private SecretKey cachedSecretKey;
+    private String cachedSecret;
+
     private SecretKey getSecretKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        if (cachedSecretKey == null || !secret.equals(cachedSecret)) {
+            byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+            if (keyBytes.length < 32) {
+                throw new IllegalStateException("JWT密钥长度不足，至少需要32字节（256位）");
+            }
+            cachedSecretKey = Keys.hmacShaKeyFor(keyBytes);
+            cachedSecret = secret;
+        }
+        return cachedSecretKey;
     }
 
-    /**
-     * 生成token
-     */
-    public String generateToken(Long userId, String username) {
+    public String generateAccessToken(Long userId, String username, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("username", username);
-        claims.put("created", new Date());
-
-        return createToken(claims);
-    }
-
-    /**
-     * 创建token
-     */
-    private String createToken(Map<String, Object> claims) {
-        Date now = new Date();
-        Date expirationDate = new Date(now.getTime() + expiration);
+        claims.put("role", role);
+        claims.put("type", "access");
 
         return Jwts.builder()
-                .setClaims(claims)
-                .setIssuedAt(now)
-                .setExpiration(expirationDate)
-                .signWith(getSecretKey(), SignatureAlgorithm.HS256)
+                .claims(claims)
+                .issuer(issuer)
+                .subject(String.valueOf(userId))
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration * 1000))
+                .id(generateJti(userId))
+                .signWith(getSecretKey())
                 .compact();
     }
 
-    /**
-     * 解析token
-     */
+    public String generateRefreshToken(Long userId, String username) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("username", username);
+        claims.put("type", "refresh");
+
+        String token = Jwts.builder()
+                .claims(claims)
+                .issuer(issuer)
+                .subject(String.valueOf(userId))
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration * 1000))
+                .id(generateJti(userId))
+                .signWith(getSecretKey())
+                .compact();
+
+        if (redisUtils != null) {
+            redisUtils.set("user:refresh_token:" + userId, token, refreshTokenExpiration);
+        }
+        return token;
+    }
+
     public Claims parseToken(String token) {
         try {
-            return Jwts.parserBuilder()
-                    .setSigningKey(getSecretKey())
+            return Jwts.parser()
+                    .verifyWith(getSecretKey())
                     .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+                    .parseSignedClaims(token)
+                    .getPayload();
         } catch (ExpiredJwtException e) {
-            log.error("token已过期: {}", e.getMessage());
-            throw e;
-        } catch (JwtException e) {
-            log.error("token解析失败: {}", e.getMessage());
-            throw e;
+            log.warn("Token已过期: {}", e.getMessage());
+            throw new BusinessException(ErrorCode.TOKEN_EXPIRED);
+        } catch (JwtException | IllegalArgumentException e) {
+            log.error("Token解析失败: {}", e.getMessage());
+            throw new BusinessException(ErrorCode.TOKEN_INVALID);
         }
     }
 
-    /**
-     * 验证token
-     */
-    public boolean validateToken(String token) {
+    public boolean validateAccessToken(String token) {
         try {
-            parseToken(token);
+            Claims claims = parseToken(token);
+            if (!"access".equals(claims.get("type"))) {
+                log.warn("Token类型错误，期望access，实际: {}", claims.get("type"));
+                return false;
+            }
+            if (isTokenBlacklisted(claims.getId())) {
+                log.warn("Token已被拉黑: {}", claims.getId());
+                return false;
+            }
             return true;
-        } catch (JwtException | IllegalArgumentException e) {
+        } catch (Exception e) {
             return false;
         }
     }
 
-    /**
-     * 从token中获取用户ID
-     */
-    public Long getUserIdFromToken(String token) {
-        Claims claims = parseToken(token);
-        return claims.get("userId", Long.class);
+    public String refreshAccessToken(String refreshToken) {
+        Claims claims = parseToken(refreshToken);
+
+        if (!"refresh".equals(claims.get("type"))) {
+            throw new BusinessException(ErrorCode.TOKEN_INVALID.getCode(), "Token类型错误");
+        }
+
+        Long userId = claims.get("userId", Long.class);
+        String username = claims.get("username", String.class);
+        String role = claims.get("role", String.class);
+
+        if (redisUtils != null) {
+            String storedToken = (String) redisUtils.get("user:refresh_token:" + userId);
+            if (!refreshToken.equals(storedToken)) {
+                throw new BusinessException(ErrorCode.TOKEN_EXPIRED.getCode(), "RefreshToken已失效");
+            }
+        }
+
+        return generateAccessToken(userId, username, role);
     }
 
-    /**
-     * 从token中获取用户名
-     */
-    public String getUsernameFromToken(String token) {
-        Claims claims = parseToken(token);
-        return claims.get("username", String.class);
-    }
-
-    /**
-     * 判断token是否过期
-     */
-    public boolean isTokenExpired(String token) {
-        try {
-            Claims claims = parseToken(token);
-            Date expiration = claims.getExpiration();
-            return expiration.before(new Date());
-        } catch (ExpiredJwtException e) {
-            return true;
+    public void logout(Long userId) {
+        if (redisUtils != null) {
+            redisUtils.del("user:refresh_token:" + userId);
         }
     }
 
-    public String getHeader() {
-        return header;
+    private boolean isTokenBlacklisted(String jti) {
+        if (redisUtils == null) {
+            return false;
+        }
+        return redisUtils.get("user:token_blacklist:" + jti) != null;
     }
 
-    public String getTokenPrefix() {
-        return tokenPrefix;
+    public void addToBlacklist(String token) {
+        try {
+            Claims claims = parseToken(token);
+            String jti = claims.getId();
+            Date expiration = claims.getExpiration();
+            long ttl = (expiration.getTime() - System.currentTimeMillis()) / 1000;
+            if (redisUtils != null && ttl > 0) {
+                redisUtils.set("user:token_blacklist:" + jti, "1", ttl);
+            }
+        } catch (Exception e) {
+            log.error("Token加入黑名单失败: {}", e.getMessage());
+        }
+    }
+
+    private String generateJti(Long userId) {
+        return userId + "_" + System.currentTimeMillis() + "_" + (int)(Math.random() * 10000);
+    }
+
+    public Long getUserIdFromToken(String token) {
+        return parseToken(token).get("userId", Long.class);
+    }
+
+    public String getUsernameFromToken(String token) {
+        return parseToken(token).get("username", String.class);
+    }
+
+    public String getRoleFromToken(String token) {
+        return parseToken(token).get("role", String.class);
+    }
+
+    public boolean isTokenExpired(String token) {
+        try {
+            return parseToken(token).getExpiration().before(new Date());
+        } catch (BusinessException e) {
+            return true;
+        }
     }
 }

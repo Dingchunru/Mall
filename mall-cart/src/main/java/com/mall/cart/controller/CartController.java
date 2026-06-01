@@ -6,7 +6,7 @@ import com.mall.common.response.Result;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 @RestController
@@ -17,7 +17,7 @@ public class CartController {
     private CartService cartService;
 
     /**
-     * 获取购物车
+     * 获取购物�?
      */
     @GetMapping
     public Result<Cart> getCart(@RequestHeader("X-User-Id") Long userId) {
@@ -37,7 +37,7 @@ public class CartController {
     }
 
     /**
-     * 更新购物车商品数量
+     * 更新购物车商品数�?
      */
     @PutMapping("/update")
     public Result<Void> updateCart(
@@ -60,7 +60,7 @@ public class CartController {
     }
 
     /**
-     * 清空购物车
+     * 清空购物�?
      */
     @DeleteMapping("/clear")
     public Result<Void> clearCart(@RequestHeader("X-User-Id") Long userId) {
@@ -81,7 +81,7 @@ public class CartController {
     }
 
     /**
-     * 全选/全不选
+     * 全�?全不�?
      */
     @PutMapping("/checkAll")
     public Result<Void> checkAll(
@@ -92,7 +92,7 @@ public class CartController {
     }
 
     /**
-     * 获取选中的商品（用于下单）
+     * 获取选中的商品（用于下单�?
      */
     @GetMapping("/checked")
     public Result<Cart> getCheckedItems(@RequestHeader("X-User-Id") Long userId) {
@@ -100,7 +100,7 @@ public class CartController {
     }
 
     /**
-     * 获取购物车商品数量
+     * 获取购物车商品数�?
      */
     @GetMapping("/count")
     public Result<Integer> getCartCount(@RequestHeader("X-User-Id") Long userId) {

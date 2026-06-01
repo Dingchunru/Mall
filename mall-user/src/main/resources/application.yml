@@ -33,3 +33,9 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+
+jwt:
+  secret: mall-secret-key-must-be-at-least-32-bytes-long!!
+  access-token-expiration: 1800
+  refresh-token-expiration: 604800
+  issuer: mall-server

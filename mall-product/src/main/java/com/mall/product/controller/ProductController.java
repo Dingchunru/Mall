@@ -11,7 +11,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -40,7 +40,7 @@ public class ProductController {
     }
 
     /**
-     * 批量更新商品状态
+     * 批量更新商品状�?
      */
     @PutMapping("/status")
     public Result<Void> batchUpdateStatus(@RequestParam List<Long> ids, 
@@ -74,7 +74,7 @@ public class ProductController {
     }
 
     /**
-     * 获取最新商品
+     * 获取最新商�?
      */
     @GetMapping("/new")
     public Result<List<Product>> getNewProducts(@RequestParam(defaultValue = "10") Integer limit) {

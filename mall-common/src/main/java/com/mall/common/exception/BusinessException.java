@@ -10,7 +10,7 @@ public class BusinessException extends RuntimeException {
     
     public BusinessException(String message) {
         super(message);
-        this.code = ErrorCode.BUSINESS_ERROR.getCode();
+        this.code = ErrorCode.SYSTEM_ERROR.getCode();
         this.message = message;
     }
     

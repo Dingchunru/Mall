@@ -2,7 +2,7 @@
 package com.mall.user.dto;
 
 import lombok.Data;
-import javax.validation.constraints.Pattern;
+import jakarta.validation.constraints.Pattern;
 
 @Data
 public class UserUpdateDTO {

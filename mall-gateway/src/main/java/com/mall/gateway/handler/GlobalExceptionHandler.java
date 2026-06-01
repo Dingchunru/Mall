@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.web.server.ResponseStatusException;
@@ -49,14 +50,14 @@ public class GlobalExceptionHandler implements ErrorWebExceptionHandler {
         return handleUnknownException(response, ex);
     }
 
-    private Mono<Void> handleResponseStatusException(ServerHttpResponse response, 
+    private Mono<Void> handleResponseStatusException(ServerHttpResponse response,
                                                      ResponseStatusException ex) {
-        HttpStatus status = ex.getStatus();
+        HttpStatusCode statusCode = ex.getStatusCode();
         String message = ex.getReason();
-        
-        log.error("ResponseStatusException: {} - {}", status, message, ex);
-        
-        return writeResponse(response, status.value(), message);
+
+        log.error("ResponseStatusException: {} - {}", statusCode, message, ex);
+
+        return writeResponse(response, statusCode.value(), message);
     }
 
     private Mono<Void> handleNotFoundException(ServerHttpResponse response, 

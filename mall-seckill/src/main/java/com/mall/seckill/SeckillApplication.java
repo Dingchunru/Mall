@@ -14,14 +14,6 @@ import org.springframework.context.annotation.FilterType;
         excludeFilters = {
                 @ComponentScan.Filter(
                         type = FilterType.REGEX,
-                        pattern = "com\\.mall\\.common\\.config\\..*"
-                ),
-                @ComponentScan.Filter(
-                        type = FilterType.REGEX,
-                        pattern = "com\\.mall\\.common\\.exception\\..*"
-                ),
-                @ComponentScan.Filter(
-                        type = FilterType.REGEX,
                         pattern = "com\\.mall\\.common\\.utils\\.RedisUtils"
                 )
         }

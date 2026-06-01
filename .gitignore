@@ -36,12 +36,6 @@ logs/
 .DS_Store
 Thumbs.db
 
-# 排除所有敏感信息文件
-application-*.yml
-application-*.properties
-bootstrap-*.yml
-bootstrap-*.properties
-
 # 排除target目录下所有内容
 **/target/
 **/target/**

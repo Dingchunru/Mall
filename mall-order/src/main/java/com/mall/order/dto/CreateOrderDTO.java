@@ -2,9 +2,9 @@
 package com.mall.order.dto;
 
 import lombok.Data;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 @Data
@@ -14,7 +14,7 @@ public class CreateOrderDTO {
     
     @NotNull(message = "收货地址不能为空")
     private Long addressId;
-    
+
     @Size(min = 1, message = "至少选择一个商品")
     private List<OrderItemDTO> items;
     

@@ -4,23 +4,23 @@ server:
 spring:
   application:
     name: mall-cart
+  profiles:
+    active: dev
   cloud:
     nacos:
       discovery:
         server-addr: localhost:8848
         namespace: dev
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://dingchunru.cn:3306/mall_cart?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: 7259.Dcr.
   redis:
     host: dingchunru.cn
     port: 6379
-  mvc:
-    pathmatch:
-      matching-strategy: ant_path_matcher
 
 logging:
   level:
     com.mall.cart: debug
+
+jwt:
+  secret: mall-secret-key-must-be-at-least-32-bytes-long!!
+  access-token-expiration: 1800
+  refresh-token-expiration: 604800
+  issuer: mall-server

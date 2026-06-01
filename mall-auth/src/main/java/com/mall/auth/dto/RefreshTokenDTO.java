@@ -1,7 +1,7 @@
 package com.mall.auth.dto;
 
 import lombok.Data;
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 
 @Data
 public class RefreshTokenDTO {

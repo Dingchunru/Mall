@@ -69,4 +69,9 @@ public interface ProductService extends IService<Product> {
      * 下架商品
      */
     boolean offSale(Long productId);
+
+    /**
+     * 获取所有商品ID
+     */
+    List<Long> getAllProductIds();
 }

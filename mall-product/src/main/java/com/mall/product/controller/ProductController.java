@@ -40,7 +40,7 @@ public class ProductController {
     }
 
     /**
-     * 批量更新商品状�?
+     * 批量更新商品状�?
      */
     @PutMapping("/status")
     public Result<Void> batchUpdateStatus(@RequestParam List<Long> ids, 
@@ -74,7 +74,7 @@ public class ProductController {
     }
 
     /**
-     * 获取最新商�?
+     * 获取最新商�?
      */
     @GetMapping("/new")
     public Result<List<Product>> getNewProducts(@RequestParam(defaultValue = "10") Integer limit) {
@@ -107,5 +107,10 @@ public class ProductController {
     public Result<Void> offSale(@PathVariable Long id) {
         productService.offSale(id);
         return Result.success();
+    }
+
+    @GetMapping("/ids/all")
+    public Result<List<Long>> getAllProductIds() {
+        return Result.success(productService.getAllProductIds());
     }
 }

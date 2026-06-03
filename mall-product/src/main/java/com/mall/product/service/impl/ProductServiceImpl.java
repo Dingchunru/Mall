@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -206,5 +207,13 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         
         product.setStatus(0);
         return this.updateById(product);
+    }
+
+    // ProductServiceImpl 实现
+    @Override
+    public List<Long> getAllProductIds() {
+        LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
+        wrapper.select(Product::getId).eq(Product::getStatus, 1);
+        return this.list(wrapper).stream().map(Product::getId).collect(Collectors.toList());
     }
 }

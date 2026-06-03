@@ -2,15 +2,15 @@ package com.mall.auth.service.impl;
 
 import com.mall.auth.dto.*;
 import com.mall.auth.entity.User;
-import com.mall.auth.exception.AuthException;
 import com.mall.auth.mapper.UserMapper;
 import com.mall.auth.service.AuthService;
+import com.mall.common.utils.BCryptUtil;
 import com.mall.common.utils.JwtUtils;
+import com.mall.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 public class AuthServiceImpl implements AuthService {
 
     private final UserMapper userMapper;
-    private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -39,17 +38,17 @@ public class AuthServiceImpl implements AuthService {
         // 查询用户
         User user = userMapper.findByUsername(loginDTO.getUsername());
         if (user == null) {
-            throw new AuthException("用户名或密码错误");
+            throw new BusinessException("用户名或密码错误");
         }
         
         // 验证密码
-        if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
-            throw new AuthException("用户名或密码错误");
+        if (!BCryptUtil.matches(loginDTO.getPassword(), user.getPassword())) {
+            throw new BusinessException("用户名或密码错误");
         }
         
         // 检查用户状态
         if (user.getStatus() != 1) {
-            throw new AuthException("账号已被禁用");
+            throw new BusinessException("账号已被禁用");
         }
         
         // 生成token
@@ -63,23 +62,23 @@ public class AuthServiceImpl implements AuthService {
         
         // 检查用户名是否已存在
         if (userMapper.findByUsername(registerDTO.getUsername()) != null) {
-            throw new AuthException("用户名已存在");
+            throw new BusinessException("用户名已存在");
         }
         
         // 检查手机号是否已存在
         if (registerDTO.getPhone() != null && userMapper.findByPhone(registerDTO.getPhone()) != null) {
-            throw new AuthException("手机号已被注册");
+            throw new BusinessException("手机号已被注册");
         }
         
         // 检查邮箱是否已存在
         if (registerDTO.getEmail() != null && userMapper.findByEmail(registerDTO.getEmail()) != null) {
-            throw new AuthException("邮箱已被注册");
+            throw new BusinessException("邮箱已被注册");
         }
         
         // 创建新用户
         User user = new User();
         BeanUtils.copyProperties(registerDTO, user);
-        user.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
+        user.setPassword(BCryptUtil.encode(registerDTO.getPassword()));
         user.setStatus(1); // 正常状态
         
         userMapper.insert(user);
@@ -97,12 +96,12 @@ public class AuthServiceImpl implements AuthService {
         Long userId = (Long) redisTemplate.opsForValue().get(key);
         
         if (userId == null) {
-            throw new AuthException("无效的刷新令牌");
+            throw new BusinessException("无效的刷新令牌");
         }
         
         User user = userMapper.selectById(userId);
         if (user == null) {
-            throw new AuthException("用户不存在");
+            throw new BusinessException("用户不存在");
         }
         
         // 删除旧的refreshToken

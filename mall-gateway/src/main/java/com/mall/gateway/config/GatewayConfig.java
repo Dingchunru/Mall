@@ -9,7 +9,10 @@ import reactor.core.publisher.Mono;
 @Configuration
 public class GatewayConfig {
 
-    @Bean
+    /**
+     * 基于IP的限流
+     */
+    @Bean(name = "ipKeyResolver")
     @Primary
     public KeyResolver ipKeyResolver() {
         return exchange -> Mono.just(
@@ -17,18 +20,14 @@ public class GatewayConfig {
         );
     }
 
-    @Bean
+    /**
+     * 基于用户的限流
+     */
+    @Bean(name = "userKeyResolver")
     public KeyResolver userKeyResolver() {
-        return exchange -> Mono.just(
-                exchange.getRequest().getHeaders().getFirst("X-User-Id") == null ?
-                        "anonymous" : exchange.getRequest().getHeaders().getFirst("X-User-Id")
-        );
-    }
-
-    @Bean
-    public KeyResolver apiKeyResolver() {
-        return exchange -> Mono.just(
-                exchange.getRequest().getPath().value()
-        );
+        return exchange -> {
+            String userId = exchange.getRequest().getHeaders().getFirst("X-User-Id");
+            return Mono.just(userId != null ? userId : "anonymous");
+        };
     }
 }

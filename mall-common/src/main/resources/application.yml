@@ -1,15 +1,4 @@
-server:
-  port: 8082
-
 spring:
-  application:
-    name: mall-product
-  profiles:
-    active: dev
-  cloud:
-    nacos:
-      discovery:
-        server-addr: localhost:8848
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://dingchunru.cn:3306/Mall?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
@@ -25,8 +14,6 @@ spring:
       matching-strategy: ant_path_matcher
 
 mybatis-plus:
-  mapper-locations: classpath:mapper/*.xml
-  type-aliases-package: com.mall.product.entity
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
@@ -35,18 +22,6 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
-
-logging:
-  level:
-    com.mall.product: INFO
-    com.mall.product.mapper: WARN
-    org.springframework: WARN
-    com.baomidou.mybatisplus: WARN
-    com.alibaba.nacos: WARN
-  file:
-    path: /var/log/mall/product
-    max-size: 100MB
-    max-history: 30
 
 jwt:
   secret: mall-secret-key-must-be-at-least-32-bytes-long!!

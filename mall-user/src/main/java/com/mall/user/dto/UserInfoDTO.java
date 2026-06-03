@@ -13,4 +13,6 @@ public class UserInfoDTO {
     private Integer gender;
     private String avatar;
     private LocalDateTime createTime;
+    private String accessToken;
+    private String refreshToken;
 }

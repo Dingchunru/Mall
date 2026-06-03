@@ -13,6 +13,8 @@ spring:
         namespace: dev
   redis:
     host: dingchunru.cn
+    password: 7259.Dcr.
+    database: 0
     port: 6379
 
 logging:

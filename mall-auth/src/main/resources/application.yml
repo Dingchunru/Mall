@@ -13,11 +13,12 @@ spring:
         namespace: dev
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://dingchunru.cn:3306/mall_auth?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://dingchunru.cn:3306/Mall?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: dingchunru
     password: 7259.Dcr.
   redis:
     host: dingchunru.cn
+    database: 0
     port: 6379
     password: 7259.Dcr.
   mvc:

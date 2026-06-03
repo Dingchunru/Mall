@@ -1,13 +1,16 @@
+把 readme 里的端口改成实际端口，启动顺序也更新了。完整的替换如下：
+
+```md
 # 🛒 Mall 微服务商城系统
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Spring%20Boot-2.7.10-brightgreen.svg" alt="Spring Boot">
-  <img src="https://img.shields.io/badge/Spring%20Cloud-2021.0.5-blue.svg" alt="Spring Cloud">
-  <img src="https://img.shields.io/badge/Spring%20Cloud%20Alibaba-2021.0.4.0-orange.svg" alt="Spring Cloud Alibaba">
+  <img src="https://img.shields.io/badge/Spring%20Boot-3.2.5-brightgreen.svg" alt="Spring Boot">
+  <img src="https://img.shields.io/badge/Spring%20Cloud-2023.0.1-blue.svg" alt="Spring Cloud">
+  <img src="https://img.shields.io/badge/Spring%20Cloud%20Alibaba-2023.0.1.0-orange.svg" alt="Spring Cloud Alibaba">
   <img src="https://img.shields.io/badge/MySQL-8.0.33-blue.svg" alt="MySQL">
-  <img src="https://img.shields.io/badge/Redis-5.0+-red.svg" alt="Redis">
-  <img src="https://img.shields.io/badge/Elasticsearch-7.17.9-green.svg" alt="Elasticsearch">
-  <img src="https://img.shields.io/badge/RabbitMQ-3.12+-orange.svg" alt="RabbitMQ">
+  <img src="https://img.shields.io/badge/Redis-7.0+-red.svg" alt="Redis">
+  <img src="https://img.shields.io/badge/Elasticsearch-7.17.18-green.svg" alt="Elasticsearch">
+  <img src="https://img.shields.io/badge/RocketMQ-2.3.0-orange.svg" alt="RocketMQ">
   <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
 </p>
 
@@ -17,436 +20,201 @@
 
 ### ✨ 核心特性
 
-- 🔐 **完整的用户认证体系** - JWT + Spring Security，支持单点登录
+- 🔐 **完整的用户认证体系** - JWT 双 Token 机制，支持 Token 刷新与黑名单
 - 🛍️ **商品管理** - 商品分类、商品详情、商品搜索
-- 🛒 **购物车服务** - Redis实现，支持多端同步
+- 🛒 **购物车服务** - Redis 实现，支持多端同步
 - 📦 **订单系统** - 订单创建、支付、取消、查询
-- ⚡ **秒杀系统** - Redis原子操作 + RabbitMQ异步处理
-- 🔍 **全文搜索** - Elasticsearch实现商品搜索
-- 🚪 **API网关** - 统一路由、鉴权、限流
-- 📊 **配置中心** - Nacos实现配置统一管理
-- 📈 **服务监控** - Spring Boot Admin监控服务状态
+- ⚡ **秒杀系统** - Redis 原子操作 + RocketMQ 异步处理
+- 🔍 **全文搜索** - Elasticsearch 实现商品搜索
+- 🚪 **API网关** - 统一路由、鉴权、限流、日志
+- 📊 **配置中心** - Nacos 实现注册发现
+- 🛡️ **密码加密** - BCrypt 加密存储
+- 📝 **统一异常处理** - 全局异常拦截，友好提示
+- 📋 **操作日志** - 关键操作日志记录
+- ⛓️ **登录保护** - 密码错误次数限制，防暴力破解
 
 ## 🏗️ 系统架构
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       客户端 (Web/App)                         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     API网关 (Spring Cloud Gateway)           │
-│                      (路由、认证、限流、日志)                     │
-└─────────────────────────────────────────────────────────────┘
-                              │
-        ┌───────────────────┬───────────────────┐
-        ▼                   ▼                   ▼
-┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│   认证服务     │    │   用户服务     │    │   商品服务     │
-│   mall-auth   │    │  mall-user    │    │ mall-product  │
-└───────────────┘    └───────────────┘    └───────────────┘
-        │                   │                   │
-        ▼                   ▼                   ▼
-┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│   订单服务     │    │   购物车服务   │    │   秒杀服务     │
-│  mall-order   │    │   mall-cart   │    │ mall-seckill  │
-└───────────────┘    └───────────────┘    └───────────────┘
-        │                   │                   │
-        ▼                   ▼                   ▼
-┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│   搜索服务     │    │   公共模块     │    │   消息队列     │
-│  mall-search  │    │  mall-common  │    │   RabbitMQ    │
-└───────────────┘    └───────────────┘    └───────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                 基础设施层 (MySQL、Redis、ES)                   │
-└─────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────┐
-│                 注册配置中心 (Nacos)                           │
-└─────────────────────────────────────────────────────────────┘
+                              ┌─────────────────────────────────────────────────────────────┐
+                              │                    客户端 (Web/App)                           │
+                              └─────────────────────────────────────────────────────────────┘
+                                                        │
+                                                        ▼
+                              ┌─────────────────────────────────────────────────────────────┐
+                              │               API网关 (Spring Cloud Gateway)                  │
+                              │              (路由、认证、限流、日志、CORS)                      │
+                              │                     端口: 8080                                │
+                              └─────────────────────────────────────────────────────────────┘
+                                                        │
+                   ┌──────────┬──────────┬──────────┬──────────┬──────────┐
+                   ▼          ▼          ▼          ▼          ▼          ▼
+            ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+            │ 认证服务  │ │ 用户服务  │ │ 商品服务  │ │ 订单服务  │ │ 购物车   │
+            │mall-auth │ │mall-user │ │mall-prod │ │mall-order│ │mall-cart │
+            │  :8081   │ │  :8083   │ │  :8082   │ │  :8084   │ │  :8085   │
+            └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
+                   │          │          │          │          │
+                   └──────────┴──────────┴──────────┴──────────┘
+                                        │
+                         ┌──────────────┴──────────────┐
+                         ▼                             ▼
+                  ┌──────────┐ ┌──────────┐ ┌─────────────────────────────────────┐
+                  │ 秒杀服务  │ │ 搜索服务  │ │         中间件 & 基础设施              │
+                  │mall-seck │ │mall-srch │ │ MySQL Redis ES RocketMQ Nacos       │
+                  │  :8086   │ │  :8087   │ │                                     │
+                  └──────────┘ └──────────┘ └─────────────────────────────────────┘
 ```
 
 ## 🚀 技术栈
 
-### 后端核心
 | 技术 | 版本 | 说明 |
 |------|------|------|
-| Spring Boot | 2.7.10 | 微服务基础框架 |
-| Spring Cloud | 2021.0.5 | 微服务全家桶 |
-| Spring Cloud Alibaba | 2021.0.4.0 | 阿里微服务组件 |
-| Spring Security | 5.7.7 | 认证授权 |
-| Spring Cloud Gateway | 3.1.5 | API网关 |
-| Spring Cloud OpenFeign | 3.1.5 | 声明式服务调用 |
-
-### 数据存储
-| 技术 | 版本 | 说明 |
-|------|------|------|
+| Spring Boot | 3.2.5 | 微服务基础框架 |
+| Spring Cloud | 2023.0.1 | 微服务全家桶 |
+| Spring Cloud Alibaba | 2023.0.1.0 | 阿里微服务组件 |
+| Spring Cloud Gateway | — | API 网关 |
+| Nacos | 2.x | 注册中心 / 配置中心 |
+| MyBatis-Plus | 3.5.7 | ORM 框架 |
 | MySQL | 8.0.33 | 关系型数据库 |
-| Redis | 5.0+ | 缓存数据库 |
-| Elasticsearch | 7.17.9 | 搜索引擎 |
-
-### 中间件
-| 技术 | 版本 | 说明 |
-|------|------|------|
-| Nacos | 2.0.4 | 注册中心/配置中心 |
-| RabbitMQ | 3.12+ | 消息队列 |
-| MyBatis-Plus | 3.5.3.1 | ORM框架 |
-
-### 工具库
-| 技术 | 版本 | 说明 |
-|------|------|------|
+| Redis | 7.0+ | 缓存 / 限流 / Token |
+| Elasticsearch | 7.17.18 | 搜索引擎 |
+| RocketMQ | 2.3.0 | 消息队列 |
+| JWT | 0.12.5 | 令牌认证 |
+| BCrypt | 6.2.4 | 密码加密 |
+| Hutool | 5.8.18 | Java 工具类库 |
 | Lombok | 1.18.30 | 代码简化 |
-| JWT | 0.11.5 | 令牌认证 |
-| Swagger3 | 3.0.0 | API文档 |
-| Fastjson2 | 2.0.25 | JSON处理 |
-| Hutool | 5.8.18 | Java工具类库 |
 
 ## 📦 模块详解
 
-### 1. mall-auth - 认证中心 🔐
-- **功能**: 用户认证、JWT令牌颁发、权限控制
-- **技术亮点**: Spring Security + JWT
-- **API接口**:
-  - `POST /auth/login` - 用户登录
-  - `POST /auth/register` - 用户注册
-  - `POST /auth/logout` - 用户登出
-  - `POST /auth/refresh` - 刷新令牌
-- **端口**: 8081
-
-### 2. mall-user - 用户服务 👤
-- **功能**: 用户信息管理、地址管理
-- **技术亮点**: MyBatis-Plus
-- **API接口**:
-  - `GET /user/info/{id}` - 获取用户信息
-  - `PUT /user/info` - 更新用户信息
-  - `GET /user/current` - 获取当前用户
-- **端口**: 8082
-
-### 3. mall-product - 商品服务 📦
-- **功能**: 商品管理、分类管理、库存管理
-- **技术亮点**: MyBatis-Plus + Redis缓存
-- **API接口**:
-  - `GET /product/list` - 商品列表
-  - `GET /product/detail/{id}` - 商品详情
-  - `POST /product` - 添加商品
-  - `PUT /product/{id}` - 更新商品
-- **端口**: 8083
-
-### 4. mall-order - 订单服务 📋
-- **功能**: 订单创建、支付、取消、查询
-- **技术亮点**: 分布式事务 + 状态机
-- **API接口**:
-  - `POST /order/create` - 创建订单
-  - `GET /order/list` - 订单列表
-  - `GET /order/detail/{orderNo}` - 订单详情
-  - `POST /order/cancel/{orderNo}` - 取消订单
-  - `POST /order/pay/{orderNo}` - 支付订单
-- **端口**: 8084
-
-### 5. mall-cart - 购物车服务 🛒
-- **功能**: 购物车管理
-- **技术亮点**: Redis存储
-- **API接口**:
-  - `GET /cart` - 获取购物车
-  - `POST /cart/add` - 添加商品
-  - `PUT /cart/update` - 更新数量
-  - `DELETE /cart/remove` - 删除商品
-  - `DELETE /cart/clear` - 清空购物车
-- **端口**: 8085
-
-### 6. mall-seckill - 秒杀服务 ⚡
-- **功能**: 秒杀活动、库存扣减
-- **技术亮点**: Redis原子操作 + RabbitMQ异步
-- **API接口**:
-  - `GET /seckill/list` - 秒杀商品列表
-  - `POST /seckill/{seckillId}` - 参与秒杀
-  - `GET /seckill/result/{seckillId}` - 秒杀结果
-- **端口**: 8086
-
-### 7. mall-search - 搜索服务 🔍
-- **功能**: 商品搜索、搜索建议
-- **技术亮点**: Elasticsearch
-- **API接口**:
-  - `POST /search/products` - 搜索商品
-  - `GET /search/suggest` - 搜索建议
-  - `POST /search/sync/{productId}` - 同步商品
-- **端口**: 8087
-
-### 8. mall-gateway - 网关服务 🚪
-- **功能**: 路由转发、统一认证、限流、日志
-- **技术亮点**: Spring Cloud Gateway
-- **端口**: 8080
-
-### 9. mall-common - 公共模块 📚
-- **功能**: 通用工具类、公共配置、统一返回结果
-- **包含组件**:
-  - 统一返回结果 `Result`
-  - JWT工具类 `JwtUtils`
-  - 异常处理 `BusinessException`
-  - 公共实体类 `BaseEntity`
+| 模块 | 端口 | 数据库 | Redis | ES | RocketMQ | 说明 |
+|------|:---:|:---:|:---:|:---:|:---:|------|
+| mall-gateway | 8080 | — | ✅ | — | — | API 网关，统一入口 |
+| mall-auth | 8081 | ✅ | ✅ | — | — | 认证中心 |
+| mall-user | 8083 | ✅ | ✅ | — | — | 用户服务 |
+| mall-product | 8082 | ✅ | ✅ | — | — | 商品服务 |
+| mall-order | 8084 | ✅ | ✅ | — | ✅ | 订单服务 |
+| mall-cart | 8085 | — | ✅ | — | — | 购物车服务 |
+| mall-seckill | 8086 | ✅ | ✅ | — | ✅ | 秒杀服务 |
+| mall-search | 8087 | — | — | ✅ | — | 搜索服务 |
+| mall-common | — | — | — | — | — | 公共模块 |
 
 ## 🚀 快速开始
 
 ### 环境要求
-- ✅ JDK 11+
-- ✅ Maven 3.6+
-- ✅ MySQL 5.7+
-- ✅ Redis 5.0+
-- ✅ Nacos 2.0.4
-- ✅ RabbitMQ 3.12+ (可选)
-- ✅ Elasticsearch 7.17.9 (可选)
 
-### 基础设施启动
+| 组件 | 版本 | 必须 |
+|------|------|:---:|
+| JDK | 21+ | ✅ |
+| Maven | 3.6+ | ✅ |
+| MySQL | 8.0+ | ✅ |
+| Redis | 7.0+ | ✅ |
+| Nacos | 2.x | ✅ |
+| Elasticsearch | 7.17.x | ⬜ |
+| RocketMQ | 5.x | ⬜ |
 
-#### 1. 启动Nacos
+---
+
+### 基础设施启动（按顺序）
+
 ```bash
-# Windows
+# 1️⃣ MySQL
+# 确保 MySQL 服务已启动，端口 3306
+
+# 2️⃣ Redis
+redis-server
+redis-cli ping  # 返回 PONG
+
+# 3️⃣ Nacos（Windows）
 cd D:\nacos\bin
 startup.cmd -m standalone
+# 控制台: http://localhost:8848/nacos (nacos/nacos)
 
-# Linux/Mac
-cd /path/to/nacos/bin
-sh startup.sh -m standalone
-```
-访问控制台: http://localhost:8848/nacos (用户名/密码: nacos/nacos)
-
-#### 2. 启动Redis
-```bash
-redis-server
-# 验证
-redis-cli ping  # 返回 PONG
-```
-
-#### 3. 启动RabbitMQ（可选）
-```bash
-# Windows
-cd "C:\Program Files\RabbitMQ Server\rabbitmq_server-3.12.0\sbin"
-rabbitmq-server start
-rabbitmq-plugins enable rabbitmq_management
-```
-访问控制台: http://localhost:15672 (用户名/密码: guest/guest)
-
-#### 4. 启动Elasticsearch（可选）
-```bash
+# 4️⃣ Elasticsearch（搜索功能需要）
 cd D:\elasticsearch\bin
 elasticsearch.bat
-```
-验证: http://localhost:9200
+# 验证: http://localhost:9200
 
-### 数据库初始化
-
-```sql
--- 创建数据库
-CREATE DATABASE IF NOT EXISTS mall_user DEFAULT CHARACTER SET utf8mb4;
-CREATE DATABASE IF NOT EXISTS mall_product DEFAULT CHARACTER SET utf8mb4;
-CREATE DATABASE IF NOT EXISTS mall_order DEFAULT CHARACTER SET utf8mb4;
-CREATE DATABASE IF NOT EXISTS mall_seckill DEFAULT CHARACTER SET utf8mb4;
-
--- 执行SQL脚本（在项目doc目录下）
-mysql -uroot -p mall_user < doc/sql/mall_user.sql
-mysql -uroot -p mall_product < doc/sql/mall_product.sql
-mysql -uroot -p mall_order < doc/sql/mall_order.sql
-mysql -uroot -p mall_seckill < doc/sql/mall_seckill.sql
+# 5️⃣ RocketMQ（订单/秒杀需要）
+# 启动 NameServer
+start mqnamesrv.cmd
+# 启动 Broker
+start mqbroker.cmd -n localhost:9876
 ```
 
-### 项目构建
+---
 
-```bash
-# 克隆项目
-git clone https://github.com/your-repo/mall.git
-cd mall
+### 微服务启动
 
-# 编译打包
-mvn clean install
+#### 方式一：一键脚本
 
-# 或者跳过测试
-mvn clean install -DskipTests
-```
+项目根目录下有 `start.bat`，双击运行。
 
-### 服务启动顺序
-
-按以下顺序启动各个微服务（每个服务单独开一个命令行窗口）：
-
-```bash
-# 1. 启动认证服务 (端口: 8081)
-cd mall-auth
-mvn spring-boot:run
-
-# 2. 启动用户服务 (端口: 8082)
-cd ../mall-user
-mvn spring-boot:run
-
-# 3. 启动商品服务 (端口: 8083)
-cd ../mall-product
-mvn spring-boot:run
-
-# 4. 启动订单服务 (端口: 8084)
-cd ../mall-order
-mvn spring-boot:run
-
-# 5. 启动购物车服务 (端口: 8085)
-cd ../mall-cart
-mvn spring-boot:run
-
-# 6. 启动秒杀服务 (端口: 8086)
-cd ../mall-seckill
-mvn spring-boot:run
-
-# 7. 启动搜索服务 (端口: 8087)
-cd ../mall-search
-mvn spring-boot:run
-
-# 8. 启动网关服务 (端口: 8080)
-cd ../mall-gateway
-mvn spring-boot:run
-```
-
-### 一键启动脚本
-
-创建 `start-all.bat` (Windows):
-
-```batch
+```bat
 @echo off
-echo Starting all mall services...
+chcp 65001 >nul
+echo ========== 启动 Mall 微服务 ==========
 
-start "mall-auth" cmd /c "cd /d E:\Code\mall\mall-auth && mvn spring-boot:run"
-timeout /t 10
+start "mall-gateway" cmd /k "cd /d E:\Mall\mall-gateway && mvn spring-boot:run"
+timeout /t 8 >nul
 
-start "mall-user" cmd /c "cd /d E:\Code\mall\mall-user && mvn spring-boot:run"
-timeout /t 10
+start "mall-auth" cmd /k "cd /d E:\Mall\mall-auth && mvn spring-boot:run"
+start "mall-user" cmd /k "cd /d E:\Mall\mall-user && mvn spring-boot:run"
+start "mall-product" cmd /k "cd /d E:\Mall\mall-product && mvn spring-boot:run"
+start "mall-order" cmd /k "cd /d E:\Mall\mall-order && mvn spring-boot:run"
+start "mall-cart" cmd /k "cd /d E:\Mall\mall-cart && mvn spring-boot:run"
+start "mall-seckill" cmd /k "cd /d E:\Mall\mall-seckill && mvn spring-boot:run"
+start "mall-search" cmd /k "cd /d E:\Mall\mall-search && mvn spring-boot:run"
 
-start "mall-product" cmd /c "cd /d E:\Code\mall\mall-product && mvn spring-boot:run"
-timeout /t 10
-
-start "mall-order" cmd /c "cd /d E:\Code\mall\mall-order && mvn spring-boot:run"
-timeout /t 10
-
-start "mall-cart" cmd /c "cd /d E:\Code\mall\mall-cart && mvn spring-boot:run"
-timeout /t 10
-
-start "mall-seckill" cmd /c "cd /d E:\Code\mall\mall-seckill && mvn spring-boot:run"
-timeout /t 10
-
-start "mall-search" cmd /c "cd /d E:\Code\mall\mall-search && mvn spring-boot:run"
-timeout /t 10
-
-start "mall-gateway" cmd /c "cd /d E:\Code\mall\mall-gateway && mvn spring-boot:run"
-
-echo All services started!
+echo ========== 全部启动完成 ==========
 pause
 ```
 
-## 📚 API文档
+#### 方式二：逐个启动（推荐首次）
 
-启动所有服务后，访问以下地址查看API文档：
+每个服务打开一个终端：
 
-| 服务 | Swagger地址 |
-|------|-------------|
-| 网关服务 | http://localhost:8080/swagger-ui/ |
-| 认证服务 | http://localhost:8081/swagger-ui/ |
-| 用户服务 | http://localhost:8082/swagger-ui/ |
-| 商品服务 | http://localhost:8083/swagger-ui/ |
-| 订单服务 | http://localhost:8084/swagger-ui/ |
-| 购物车服务 | http://localhost:8085/swagger-ui/ |
-| 秒杀服务 | http://localhost:8086/swagger-ui/ |
-| 搜索服务 | http://localhost:8087/swagger-ui/ |
-
-## 🧪 测试用例
-
-### 1. 用户注册登录测试
 ```bash
-# 注册
-curl -X POST http://localhost:8080/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "password": "123456",
-    "phone": "13800138000",
-    "email": "test@example.com"
-  }'
-
-# 登录
-curl -X POST http://localhost:8080/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "password": "123456"
-  }'
+cd E:\Mall\mall-gateway   && mvn spring-boot:run
+cd E:\Mall\mall-auth      && mvn spring-boot:run
+cd E:\Mall\mall-user      && mvn spring-boot:run
+cd E:\Mall\mall-product   && mvn spring-boot:run
+cd E:\Mall\mall-order     && mvn spring-boot:run
+cd E:\Mall\mall-cart      && mvn spring-boot:run
+cd E:\Mall\mall-seckill   && mvn spring-boot:run
+cd E:\Mall\mall-search    && mvn spring-boot:run
 ```
 
-### 2. 商品搜索测试
-```bash
-# 获取token
-TOKEN="your_jwt_token_here"
+---
 
-# 搜索商品
-curl -X POST http://localhost:8080/search/products \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "keyword": "手机",
-    "page": 1,
-    "size": 10
-  }'
-```
+### 验证
+
+所有服务启动后，打开 Nacos 控制台 http://localhost:8848/nacos ，服务列表应有 **8 个在线实例**。
+
+---
 
 ## 📊 监控管理
 
-### Nacos控制台
-- 地址: http://localhost:8848/nacos
-- 查看服务注册情况、配置管理
-
-### Spring Boot Admin（可选）
-- 地址: http://localhost:8088
-- 监控所有微服务状态
-
-### RabbitMQ管理
-- 地址: http://localhost:15672
-- 查看消息队列状态
+| 组件 | 地址 | 账号/密码 |
+|------|------|-----------|
+| Nacos | http://localhost:8848/nacos | nacos/nacos |
+| Elasticsearch | http://localhost:9200 | — |
 
 ## 🐛 常见问题
 
-### Q1: 服务启动失败，端口被占用
-```bash
-# 查看端口占用
-netstat -ano | findstr 8081
-# 结束进程
-taskkill /PID <进程ID> /F
-```
-
-### Q2: 数据库连接失败
-检查 `application.yml` 中的数据库配置：
-```yaml
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/mall_user?useSSL=false&serverTimezone=Asia/Shanghai
-    username: root
-    password: your_password
-```
-
-### Q3: Redis连接失败
-```bash
-# 检查Redis是否启动
-redis-cli ping
-# 应该返回 PONG
-```
-
-### Q4: Nacos连接失败
-```bash
-# 检查Nacos是否启动
-curl http://localhost:8848/nacos
-```
+| 问题 | 解决 |
+|------|------|
+| 端口被占用 | `netstat -ano \| findstr 8080` → `taskkill /PID xxx /F` |
+| 数据库连接失败 | 检查 MySQL 服务和 `application.yml` 配置 |
+| Redis 连接失败 | `redis-cli ping` 确认 Redis 运行 |
+| Nacos 连接失败 | 确认 Nacos 已 `startup.cmd -m standalone` |
+| 启动报 DataSource 错误 | mall-cart/search 已排除 DataSource，检查配置 |
+| Token 401 | 登录获取新 Token，或检查 Gateway JWT 过滤器 |
 
 ## 📞 联系方式
 
-- **项目负责人**:丁春儒（2022211636@bupt.cn）
+- **项目负责人**: 丁春儒（dingchunru@foxmail.com）
 - **项目地址**: https://github.com/Dingchunru/Mall
-- **问题反馈**: [Issues](https://github.com/Dingchunru/Mall/issues)
-
-## 🌟 致谢
-
-感谢所有为这个项目做出贡献的开发者！
 
 ---
 

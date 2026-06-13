@@ -17,7 +17,8 @@ public class User {
     private Integer gender;
     private String avatar;
     private Integer status;
-    
+    private String role;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
     

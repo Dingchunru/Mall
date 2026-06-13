@@ -8,6 +8,7 @@ import com.mall.common.utils.RedisUtils;
 import com.mall.user.entity.User;
 import com.mall.user.mapper.UserMapper;
 import com.mall.user.service.UserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,72 +19,10 @@ import java.time.LocalDateTime;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
-    @Autowired
-    private RedisUtils redisUtils;
-    @Override
-    public User login(String username, String password) {
-        if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
-            throw new BusinessException(400, "用户名或密码不能为空");
-        }
-        
-        String failedKey = "login:failed:"+username;;
-
-        Object failedCountObj = redisUtils.get(failedKey);
-        int failedCount = 0;
-        if (failedCountObj != null) {
-            failedCount = Integer.parseInt(failedCountObj.toString());
-        }
-        if (failedCount >= 5){
-            long remainingTime = redisUtils.getExpire(failedKey);
-            throw new BusinessException(429, "密码错误次数太多，请" + remainingTime + "稍后再试");
-        }
-
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getUsername, username);
-        User user = this.getOne(wrapper);
-
-        if (user == null){
-            recordLoginFailure(failedKey, failedCount);
-            throw new BusinessException(401, "用户名或密码错误");
-        }
-
-        if (user.getStatus() == 0){
-            throw new BusinessException(403, "用户被禁用");
-        }
-
-        if (!BCryptUtil.matches(password, user.getPassword())){
-            recordLoginFailure(failedKey, failedCount);
-            throw new BusinessException(401, "用户名或密码错误");
-        }
-
-        redisUtils.del(failedKey);
-
-        return user;
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public boolean register(User user) {
-        // 检查用户名是否存在
-        if (checkUsernameExists(user.getUsername())) {
-            throw new BusinessException(400, "用户名已存在");
-        }
-        
-        // 检查手机号是否存在
-        if (checkPhoneExists(user.getPhone())) {
-            throw new BusinessException(400, "手机号已注册");
-        }
-        
-        // 设置默认值
-        user.setStatus(1);
-        user.setCreateTime(LocalDateTime.now());
-        user.setUpdateTime(LocalDateTime.now());
-
-        user.setPassword(BCryptUtil.encode(user.getPassword()));
-        return this.save(user);
-    }
+    private final RedisUtils redisUtils;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -153,16 +92,5 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getPhone, phone);
         return this.count(wrapper) > 0;
-    }
-
-    /*
-    * 记录登陆失败次数
-     */
-    private void recordLoginFailure(String key, int currentCount) {
-        if (currentCount == 0) {
-            redisUtils.set(key, 1, 60 * 15);
-        } else {
-            redisUtils.incr(key, 1);
-        }
     }
 }

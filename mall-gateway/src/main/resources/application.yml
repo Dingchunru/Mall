@@ -28,7 +28,6 @@ spring:
           predicates:
             - Path=/api/auth/**
           filters:
-            - StripPrefix=1
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipKeyResolver}"
@@ -39,7 +38,6 @@ spring:
           predicates:
             - Path=/api/user/**
           filters:
-            - StripPrefix=1
             - name: JwtAuthentication
             - name: Logging
               args:
@@ -54,7 +52,6 @@ spring:
                 endTime: "23:59"
                 version: v1
           filters:
-            - StripPrefix=1
             - name: JwtAuthentication
             - name: RequestRateLimiter
               args:
@@ -66,14 +63,12 @@ spring:
           predicates:
             - Path=/api/order/**
           filters:
-            - StripPrefix=1
             - name: JwtAuthentication
         - id: mall-cart
           uri: lb://mall-cart
           predicates:
             - Path=/api/cart/**
           filters:
-            - StripPrefix=1
             - name: JwtAuthentication
             - name: RequestRateLimiter
               args:
@@ -86,7 +81,6 @@ spring:
             - Path=/api/seckill/**
             - After=2024-01-01T00:00:00+08:00[Asia/Shanghai]
           filters:
-            - StripPrefix=1
             - name: JwtAuthentication
             - name: RequestRateLimiter
               args:
@@ -98,7 +92,6 @@ spring:
           predicates:
             - Path=/api/search/**
           filters:
-            - StripPrefix=1
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipKeyResolver}"

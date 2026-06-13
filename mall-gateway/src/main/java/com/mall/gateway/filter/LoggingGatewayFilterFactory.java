@@ -3,7 +3,9 @@ package com.mall.gateway.filter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -42,13 +44,21 @@ public class LoggingGatewayFilterFactory extends
             // 设置 TraceId 到 exchange 属性（供后续使用）
             exchange.getAttributes().put("traceId", traceId);
 
+            // 将 TraceId 添加到请求头，传递给下游微服务
+            ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                    .header(TRACE_ID_HEADER, traceId)
+                    .build();
+            ServerWebExchange mutatedExchange = exchange.mutate()
+                    .request(mutatedRequest)
+                    .build();
+
             // 请求日志
             if (config.isLogHeaders()) {
                 log.info("[{}] --> {} {} Headers: {}",
                         traceId,
                         exchange.getRequest().getMethod(),
                         exchange.getRequest().getURI().getPath(),
-                        exchange.getRequest().getHeaders());
+                        maskSensitiveHeaders(exchange.getRequest().getHeaders()));
             } else {
                 log.info("[{}] --> {} {}",
                         traceId,
@@ -56,29 +66,51 @@ public class LoggingGatewayFilterFactory extends
                         exchange.getRequest().getURI().getPath());
             }
 
-            return chain.filter(exchange).then(Mono.fromRunnable(() -> {
+            return chain.filter(mutatedExchange).then(Mono.fromRunnable(() -> {
                 long duration = System.currentTimeMillis() - startTime;
-                int statusCode = exchange.getResponse().getStatusCode() != null ?
-                        exchange.getResponse().getStatusCode().value() : 0;
+                int statusCode = mutatedExchange.getResponse().getStatusCode() != null ?
+                        mutatedExchange.getResponse().getStatusCode().value() : 0;
 
                 if (statusCode >= 500) {
                     log.error("[{}] <-- {} {} {} {}ms",
-                            traceId, exchange.getRequest().getMethod(),
-                            exchange.getRequest().getURI().getPath(),
+                            traceId, mutatedExchange.getRequest().getMethod(),
+                            mutatedExchange.getRequest().getURI().getPath(),
                             statusCode, duration);
                 } else if (statusCode >= 400) {
                     log.warn("[{}] <-- {} {} {} {}ms",
-                            traceId, exchange.getRequest().getMethod(),
-                            exchange.getRequest().getURI().getPath(),
+                            traceId, mutatedExchange.getRequest().getMethod(),
+                            mutatedExchange.getRequest().getURI().getPath(),
                             statusCode, duration);
                 } else {
                     log.info("[{}] <-- {} {} {} {}ms",
-                            traceId, exchange.getRequest().getMethod(),
-                            exchange.getRequest().getURI().getPath(),
+                            traceId, mutatedExchange.getRequest().getMethod(),
+                            mutatedExchange.getRequest().getURI().getPath(),
                             statusCode, duration);
                 }
             }));
         };
+    }
+
+    /**
+     * 脱敏敏感请求头（Authorization、Cookie 等）
+     */
+    private String maskSensitiveHeaders(org.springframework.http.HttpHeaders headers) {
+        if (headers == null || headers.isEmpty()) {
+            return "{}";
+        }
+        StringBuilder sb = new StringBuilder("{");
+        headers.forEach((key, value) -> {
+            if ("authorization".equalsIgnoreCase(key) || "cookie".equalsIgnoreCase(key)) {
+                sb.append(key).append("=***, ");
+            } else {
+                sb.append(key).append("=").append(value).append(", ");
+            }
+        });
+        if (sb.length() > 1) {
+            sb.setLength(sb.length() - 2);
+        }
+        sb.append("}");
+        return sb.toString();
     }
 
     public static class Config {

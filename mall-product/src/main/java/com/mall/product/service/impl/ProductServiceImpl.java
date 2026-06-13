@@ -6,27 +6,27 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.mall.common.exception.BusinessException;
 import com.mall.product.dto.ProductDTO;
 import com.mall.product.dto.ProductQueryDTO;
+import com.mall.product.dto.ProductStockDTO;
 import com.mall.product.entity.Product;
 import com.mall.product.mapper.ProductMapper;
 import com.mall.product.service.CategoryService;
 import com.mall.product.service.ProductService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> implements ProductService {
 
-    @Autowired
-    private CategoryService categoryService;
+    private final CategoryService categoryService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -215,5 +215,25 @@ public class ProductServiceImpl extends ServiceImpl<ProductMapper, Product> impl
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
         wrapper.select(Product::getId).eq(Product::getStatus, 1);
         return this.list(wrapper).stream().map(Product::getId).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deductStock(List<ProductStockDTO> stockDTOList) {
+        for (ProductStockDTO dto : stockDTOList) {
+            reduceStock(dto.getProductId(), dto.getQuantity());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void restoreStock(List<ProductStockDTO> stockDTOList) {
+        for (ProductStockDTO dto : stockDTOList) {
+            Product product = this.getById(dto.getProductId());
+            if (product != null) {
+                product.setStock(product.getStock() + dto.getQuantity());
+                this.updateById(product);
+            }
+        }
     }
 }

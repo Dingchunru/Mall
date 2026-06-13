@@ -465,4 +465,24 @@ public class RedisUtils {
             return 0;
         }
     }
+
+    /**
+     * 原子性设置缓存（仅当key不存在时）
+     * 使用 SET key value NX EX time 命令
+     *
+     * @param key   键
+     * @param value 值
+     * @param time  过期时间（秒）
+     * @return true-设置成功（获取到锁），false-key已存在
+     */
+    public boolean setIfAbsent(String key, Object value, long time) {
+        try {
+            Boolean result = redisTemplate.opsForValue().setIfAbsent(key, value, time, TimeUnit.SECONDS);
+            return result != null && result;
+        } catch (Exception e) {
+            log.error("Redis setIfAbsent失败: {}", e.getMessage());
+            return false;
+        }
+    }
+
 }

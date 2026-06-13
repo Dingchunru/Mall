@@ -1,116 +1,112 @@
 package com.mall.product.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mall.common.response.Result;
 import com.mall.product.dto.ProductDTO;
+import com.mall.product.dto.ProductStockDTO;
 import com.mall.product.dto.ProductQueryDTO;
 import com.mall.product.entity.Product;
 import com.mall.product.service.ProductService;
-
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.util.List;
 
+@Slf4j
+@Validated
 @RestController
-@RequestMapping("/product")
+@RequestMapping("/products")
+@RequiredArgsConstructor
 public class ProductController {
 
-    @Autowired
-    private ProductService productService;
+    private final ProductService productService;
 
-    /**
-     * 创建商品
-     */
-    @PostMapping
-    public Result<Product> createProduct(@Valid @RequestBody ProductDTO productDTO) {
-        Product product = productService.createProduct(productDTO);
+    @GetMapping
+    public Result<Page<Product>> list(
+            @RequestParam(defaultValue = "1") @Min(1) Integer page,
+            @RequestParam(defaultValue = "10") @Min(1) Integer size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice) {
+
+        log.info("查询商品: page={}, size={}, keyword={}", page, size, keyword);
+
+        ProductQueryDTO queryDTO = new ProductQueryDTO();
+        queryDTO.setPage(page);
+        queryDTO.setSize(size);
+        queryDTO.setKeyword(keyword);
+        queryDTO.setCategoryId(categoryId);
+        queryDTO.setMinPrice(minPrice);
+        queryDTO.setMaxPrice(maxPrice);
+
+        Page<Product> result = productService.searchProducts(queryDTO);
+        return Result.success(result);
+    }
+
+    @GetMapping("/{id}")
+    public Result<Product> getById(@PathVariable @NotNull Long id) {
+        log.info("查询商品详情: id={}", id);
+        Product product = productService.getProductDetail(id);
         return Result.success(product);
     }
 
-    /**
-     * 更新商品
-     */
-    @PutMapping
-    public Result<Product> updateProduct(@Valid @RequestBody ProductDTO productDTO) {
+    @PostMapping
+    public Result<Product> create(@Valid @RequestBody ProductDTO productDTO) {
+        log.info("创建商品: {}", productDTO.getName());
+        Product product = productService.createProduct(productDTO);
+        return Result.success("创建成功", product);
+    }
+
+    @PutMapping("/{id}")
+    public Result<Product> update(@PathVariable @NotNull Long id,
+                                  @Valid @RequestBody ProductDTO productDTO) {
+        log.info("更新商品: id={}", id);
+        productDTO.setId(id);
         Product product = productService.updateProduct(productDTO);
         return Result.success(product);
     }
 
-    /**
-     * 批量更新商品状�?
-     */
-    @PutMapping("/status")
-    public Result<Void> batchUpdateStatus(@RequestParam List<Long> ids, 
-                                          @RequestParam Integer status) {
-        productService.batchUpdateStatus(ids, status);
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable @NotNull Long id) {
+        log.info("删除商品: id={}", id);
+        productService.removeById(id);
         return Result.success();
     }
 
-    /**
-     * 搜索商品
-     */
-    @PostMapping("/search")
-    public Result<Page<Product>> searchProducts(@RequestBody ProductQueryDTO queryDTO) {
-        return Result.success(productService.searchProducts(queryDTO));
-    }
-
-    /**
-     * 获取商品详情
-     */
-    @GetMapping("/detail/{id}")
-    public Result<Product> getProductDetail(@PathVariable Long id) {
-        return Result.success(productService.getProductDetail(id));
-    }
-
-    /**
-     * 获取热门商品
-     */
-    @GetMapping("/hot")
-    public Result<List<Product>> getHotProducts(@RequestParam(defaultValue = "10") Integer limit) {
-        return Result.success(productService.getHotProducts(limit));
-    }
-
-    /**
-     * 获取最新商�?
-     */
-    @GetMapping("/new")
-    public Result<List<Product>> getNewProducts(@RequestParam(defaultValue = "10") Integer limit) {
-        return Result.success(productService.getNewProducts(limit));
-    }
-
-    /**
-     * 减少库存
-     */
-    @PostMapping("/stock/reduce")
-    public Result<Void> reduceStock(@RequestParam Long productId, 
-                                    @RequestParam Integer quantity) {
-        productService.reduceStock(productId, quantity);
+    @PutMapping("/{id}/stock")
+    public Result<Void> reduceStock(@PathVariable @NotNull Long id,
+                                    @RequestParam @Min(1) Integer quantity) {
+        log.info("扣减库存: id={}, quantity={}", id, quantity);
+        productService.reduceStock(id, quantity);
         return Result.success();
     }
 
-    /**
-     * 上架商品
-     */
-    @PutMapping("/{id}/onSale")
-    public Result<Void> onSale(@PathVariable Long id) {
-        productService.onSale(id);
-        return Result.success();
+    @PutMapping("/stock/deduct")
+    public Result<Boolean> deductStock(@RequestBody List<ProductStockDTO> stockDTOList) {
+        productService.deductStock(stockDTOList);
+        return Result.success(true);
     }
 
-    /**
-     * 下架商品
-     */
-    @PutMapping("/{id}/offSale")
-    public Result<Void> offSale(@PathVariable Long id) {
-        productService.offSale(id);
-        return Result.success();
+    @PutMapping("/stock/restore")
+    public Result<Boolean> restoreStock(@RequestBody List<ProductStockDTO> stockDTOList) {
+        productService.restoreStock(stockDTOList);
+        return Result.success(true);
     }
 
     @GetMapping("/ids/all")
     public Result<List<Long>> getAllProductIds() {
         return Result.success(productService.getAllProductIds());
+    }
+
+    @GetMapping("/list/batch")
+    public Result<List<Product>> getProductBatch(@RequestParam List<Long> ids) {
+        return Result.success(productService.listByIds(ids));
     }
 }

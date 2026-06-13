@@ -20,6 +20,18 @@ import org.springframework.context.annotation.FilterType;
                 ),
                 @ComponentScan.Filter(
                         type = FilterType.REGEX,
+                        pattern = "com\\.mall\\.common\\.filter\\..*"
+                ),
+                @ComponentScan.Filter(
+                        type = FilterType.REGEX,
+                        pattern = "com\\.mall\\.common\\.aspect\\..*"
+                ),
+                @ComponentScan.Filter(
+                        type = FilterType.REGEX,
+                        pattern = "com\\.mall\\.common\\.annotation\\..*"
+                ),
+                @ComponentScan.Filter(
+                        type = FilterType.REGEX,
                         pattern = "com\\.mall\\.common\\.utils\\.RedisUtils"
                 )
         }

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="unknown"/>
+
+    <!-- JSON文件输出：供Filebeat采集 -->
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/${APP_NAME}.json</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/${APP_NAME}.%d{yyyy-MM-dd}.json.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"application":"${APP_NAME}","env":"prod"}</customFields>
+        </encoder>
+    </appender>
+
+    <!-- 异步输出，不阻塞业务线程 -->
+    <appender name="ASYNC_JSON" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="JSON_FILE"/>
+        <queueSize>1024</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>true</neverBlock>
+    </appender>
+
+    <!-- 框架日志：只记 ERROR -->
+    <logger name="org.springframework" level="ERROR"/>
+    <logger name="org.apache" level="ERROR"/>
+    <logger name="com.baomidou.mybatisplus" level="ERROR"/>
+    <logger name="com.alibaba.nacos" level="ERROR"/>
+    <logger name="org.hibernate" level="ERROR"/>
+    <logger name="io.netty" level="ERROR"/>
+
+    <!-- 业务日志：INFO 起步 -->
+    <logger name="com.mall" level="INFO"/>
+
+    <!-- 根日志 -->
+    <root level="WARN">
+        <appender-ref ref="ASYNC_JSON"/>
+    </root>
+
+</configuration>

@@ -4,6 +4,8 @@ import com.mall.common.exception.BusinessException;
 import com.mall.common.exception.ErrorCode;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +19,7 @@ import java.util.Map;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtUtils {
 
     /**
@@ -36,8 +39,16 @@ public class JwtUtils {
     @Value("${jwt.issuer:mall-server}")
     private String issuer;
 
-    @Autowired(required = false)
-    private RedisUtils redisUtils;
+    private final RedisUtils redisUtils;
+
+    @PostConstruct
+    public void init(){
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalStateException(
+                    "JWT密钥未配置或长度不足32字节，请在配置文件中设置 jwt.secret"
+            );
+        }
+    }
 
     private SecretKey cachedSecretKey;
     private String cachedSecret;
@@ -72,10 +83,11 @@ public class JwtUtils {
                 .compact();
     }
 
-    public String generateRefreshToken(Long userId, String username) {
+    public String generateRefreshToken(Long userId, String username, String  role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("username", username);
+        claims.put("role", role);
         claims.put("type", "refresh");
 
         String token = Jwts.builder()

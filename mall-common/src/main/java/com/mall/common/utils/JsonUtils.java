@@ -31,6 +31,9 @@ public class JsonUtils {
      * 对象转JSON字符串
      */
     public static String toJson(Object object) {
+        if (object == null){
+            return null;
+        }
         try {
             return objectMapper.writeValueAsString(object);
         } catch (JsonProcessingException e) {

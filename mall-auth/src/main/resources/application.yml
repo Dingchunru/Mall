@@ -19,7 +19,6 @@ spring:
     host: dingchunru.cn
     port: 6379
     password: 7259.Dcr.
-    database: 0
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher

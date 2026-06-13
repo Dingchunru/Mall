@@ -23,15 +23,31 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
+        <!-- 微服务版本 -->
         <spring-cloud.version>2023.0.1</spring-cloud.version>
         <spring-cloud-alibaba.version>2023.0.1.0</spring-cloud-alibaba.version>
+
+        <!-- 数据库 -->
         <mysql.version>8.0.33</mysql.version>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
+
+        <!-- JWT -->
         <jwt.version>0.12.5</jwt.version>
+        <spring-security-crypto.version>6.2.4</spring-security-crypto.version>
+
+        <!-- 工具类 -->
         <lombok.version>1.18.30</lombok.version>
-        <springdoc.version>2.5.0</springdoc.version>
-        <fastjson.version>2.0.49</fastjson.version>
         <commons-lang3.version>3.14.0</commons-lang3.version>
+        <fastjson.version>2.0.49</fastjson.version>
+        <hutool.version>5.8.18</hutool.version>
+
+        <!-- API 文档 -->
+        <springdoc.version>2.5.0</springdoc.version>
+
+        <!-- 日志 -->
+        <logstash.version>7.4</logstash.version>
+
+        <!-- 消息队列 -->
         <rocketmq.version>2.3.0</rocketmq.version>
     </properties>
 
@@ -67,6 +83,15 @@
                 <scope>import</scope>
             </dependency>
 
+            <!-- Hutool BOM（按需引入子模块） -->
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-bom</artifactId>
+                <version>${hutool.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!-- MyBatis Plus -->
             <dependency>
                 <groupId>com.baomidou</groupId>
@@ -91,13 +116,25 @@
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt-impl</artifactId>
                 <version>${jwt.version}</version>
-                <scope>runtime</scope>
             </dependency>
             <dependency>
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt-jackson</artifactId>
                 <version>${jwt.version}</version>
-                <scope>runtime</scope>
+            </dependency>
+
+            <!-- Spring Security Crypto -->
+            <dependency>
+                <groupId>org.springframework.security</groupId>
+                <artifactId>spring-security-crypto</artifactId>
+                <version>${spring-security-crypto.version}</version>
+            </dependency>
+
+            <!-- Logstash Logback Encoder -->
+            <dependency>
+                <groupId>net.logstash.logback</groupId>
+                <artifactId>logstash-logback-encoder</artifactId>
+                <version>${logstash.version}</version>
             </dependency>
 
             <!-- Lombok -->
@@ -105,10 +142,9 @@
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
-                <scope>provided</scope>
             </dependency>
 
-            <!-- SpringDoc OpenAPI (替代 Swagger) -->
+            <!-- SpringDoc OpenAPI -->
             <dependency>
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
@@ -121,6 +157,8 @@
                 <artifactId>commons-lang3</artifactId>
                 <version>${commons-lang3.version}</version>
             </dependency>
+
+            <!-- Fastjson（不推荐继续使用，建议迁移到 Jackson） -->
             <dependency>
                 <groupId>com.alibaba</groupId>
                 <artifactId>fastjson</artifactId>

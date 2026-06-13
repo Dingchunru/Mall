@@ -5,10 +5,11 @@ import com.mall.seckill.entity.SeckillOrder;
 import com.mall.seckill.entity.SeckillProduct;
 import com.mall.seckill.mapper.SeckillOrderMapper;
 import com.mall.seckill.service.SeckillService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,32 +18,36 @@ import java.util.UUID;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 @RocketMQMessageListener(
         topic = "seckill-topic",
         consumerGroup = "mall-seckill-consumer"
 )
 public class SeckillMessageListener implements RocketMQListener<SeckillMessage> {
 
-    @Autowired
-    private SeckillOrderMapper seckillOrderMapper;
-
-    @Autowired
-    private SeckillService seckillService;
+    private final SeckillOrderMapper seckillOrderMapper;
+    private final SeckillService seckillService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void onMessage(SeckillMessage message) {
-        log.info("收到秒杀消息: {}", message);
+        log.info("收到秒杀消息: userId={}, seckillId={}", message.getUserId(), message.getSeckillId());
 
         try {
             SeckillOrder order = createSeckillOrder(message);
             seckillOrderMapper.insert(order);
             seckillService.updateSeckillResult(message.getUserId(), message.getSeckillId(), order.getOrderNo());
-            log.info("秒杀订单创建成功: {}", order.getOrderNo());
+            log.info("秒杀订单创建成功: orderNo={}", order.getOrderNo());
         } catch (Exception e) {
-            log.error("秒杀订单创建失败", e);
+            log.error("秒杀订单创建失败: userId={}, seckillId={}", message.getUserId(), message.getSeckillId(), e);
+            // 回滚 Redis 库存
             seckillService.rollbackStock(message.getSeckillId());
+            // 标记失败
             seckillService.updateSeckillResult(message.getUserId(), message.getSeckillId(), "failed");
+            // 清除用户秒杀标记，允许重试
+            String userKey = "seckill:user:" + message.getSeckillId() + ":" + message.getUserId();
+            redisTemplate.delete(userKey);
         }
     }
 

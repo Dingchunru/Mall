@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.mall.product.dto.ProductDTO;
 import com.mall.product.dto.ProductQueryDTO;
+import com.mall.product.dto.ProductStockDTO;
 import com.mall.product.entity.Product;
 
 import java.util.List;
@@ -74,4 +75,8 @@ public interface ProductService extends IService<Product> {
      * 获取所有商品ID
      */
     List<Long> getAllProductIds();
+
+    void deductStock(List<ProductStockDTO> stockDTOList);
+
+    void restoreStock(List<ProductStockDTO> stockDTOList);
 }

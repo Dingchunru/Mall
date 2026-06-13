@@ -1,7 +1,7 @@
 package com.mall.gateway.handler;
 
-import cn.hutool.json.JSONUtil;
 import com.mall.common.response.Result;
+import com.mall.common.utils.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
 import org.springframework.core.annotation.Order;
@@ -13,6 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+
+import java.nio.charset.StandardCharsets;
 
 @Slf4j
 @Order(-1)
@@ -35,7 +37,7 @@ public class GlobalErrorWebExceptionHandler implements ErrorWebExceptionHandler 
             log.error("Gateway 异常: {}", ex.getMessage(), ex);
         }
 
-        byte[] bytes = JSONUtil.toJsonStr(result).getBytes();
+        byte[] bytes = JsonUtils.toJson(result).getBytes(StandardCharsets.UTF_8);
 
         return response.writeWith(Mono.fromSupplier(() -> {
             DataBufferFactory bufferFactory = response.bufferFactory();

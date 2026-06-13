@@ -2,132 +2,101 @@ package com.mall.common.exception;
 
 import com.mall.common.response.Result;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.validation.BindException;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
-import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
 import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /**
-     * 处理业务异常
-     */
     @ExceptionHandler(BusinessException.class)
-    public Result<?> handleBusinessException(BusinessException e) {
-        log.error("业务异常: {}", e.getMessage(), e);
-        HttpServletRequest request = getRequest();
-        return Result.error(e.getCode(), e.getMessage()).path(request != null ? request.getRequestURI() : "");
+    public Result<?> handleBusinessException(BusinessException e, HttpServletRequest request) {
+        log.warn("业务异常 [{}] {} - path: {}", e.getCode(), e.getMessage(), request.getRequestURI());
+        return Result.error(e.getCode(), e.getMessage()).path(request.getRequestURI());
     }
 
-    /**
-     * 处理参数验证异常
-     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Result<?> handleValidationException(MethodArgumentNotValidException e) {
-        BindingResult bindingResult = e.getBindingResult();
-        String message = bindingResult.getFieldErrors().stream()
+    public Result<?> handleValidationException(MethodArgumentNotValidException e, HttpServletRequest request) {
+        String message = e.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
-                .collect(Collectors.joining(", "));
-        log.error("参数验证失败: {}", message);
-        HttpServletRequest request = getRequest();
-        return Result.error(ErrorCode.PARAM_INVALID.getCode(), message).path(request != null ? request.getRequestURI() : "");
+                .collect(Collectors.joining("; "));
+        log.warn("参数校验失败 [{}]: {}", request.getRequestURI(), message);
+        return Result.error(ErrorCode.PARAM_INVALID, message).path(request.getRequestURI());
     }
 
-    /**
-     * 处理绑定异常
-     */
     @ExceptionHandler(BindException.class)
-    public Result<?> handleBindException(BindException e) {
+    public Result<?> handleBindException(BindException e, HttpServletRequest request) {
         String message = e.getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
-                .collect(Collectors.joining(", "));
-        log.error("参数绑定失败: {}", message);
-        HttpServletRequest request = getRequest();
-        return Result.error(ErrorCode.PARAM_INVALID.getCode(), message).path(request != null ? request.getRequestURI() : "");
+                .collect(Collectors.joining("; "));
+        log.warn("参数绑定失败 [{}]: {}", request.getRequestURI(), message);
+        return Result.error(ErrorCode.PARAM_INVALID, message).path(request.getRequestURI());
     }
 
-    /**
-     * 处理约束违反异常
-     */
     @ExceptionHandler(ConstraintViolationException.class)
-    public Result<?> handleConstraintViolationException(ConstraintViolationException e) {
-        log.error("约束违反: {}", e.getMessage());
-        HttpServletRequest request = getRequest();
-        return Result.error(ErrorCode.PARAM_INVALID.getCode(), e.getMessage()).path(request != null ? request.getRequestURI() : "");
+    public Result<?> handleConstraintViolationException(ConstraintViolationException e, HttpServletRequest request) {
+        log.warn("参数约束违反 [{}]: {}", request.getRequestURI(), e.getMessage());
+        return Result.error(ErrorCode.PARAM_INVALID, e.getMessage()).path(request.getRequestURI());
     }
 
-    /**
-     * 处理唯一键冲突
-     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public Result<?> handleMissingParamException(MissingServletRequestParameterException e, HttpServletRequest request) {
+        log.warn("缺少必要参数 [{}]: {}", request.getRequestURI(), e.getMessage());
+        return Result.error(ErrorCode.PARAM_MISSING, e.getMessage()).path(request.getRequestURI());
+    }
+
     @ExceptionHandler(DuplicateKeyException.class)
-    public Result<?> handleDuplicateKeyException(DuplicateKeyException e) {
-        log.error("数据重复: {}", e.getMessage());
-        HttpServletRequest request = getRequest();
-        return Result.error(ErrorCode.DATA_EXISTS.getCode(), "数据已存在，请勿重复提交")
-                .path(request != null ? request.getRequestURI() : "");
+    public Result<?> handleDuplicateKeyException(DuplicateKeyException e, HttpServletRequest request) {
+        log.warn("数据重复 [{}]: {}", request.getRequestURI(), extractMessage(e));
+        return Result.error(ErrorCode.DATA_EXISTS).path(request.getRequestURI());
     }
 
-    /**
-     * 处理数据库操作异常
-     */
     @ExceptionHandler(DataAccessException.class)
-    public Result<?> handleDataAccessException(DataAccessException e) {
-        log.error("数据库操作异常", e);
-        HttpServletRequest request = getRequest();
-        return Result.error(ErrorCode.SYSTEM_ERROR.getCode(), "数据操作失败")
-                .path(request != null ? request.getRequestURI() : "");
+    public Result<?> handleDataAccessException(DataAccessException e, HttpServletRequest request) {
+        log.error("数据库异常 [{}]: {}", request.getRequestURI(), extractMessage(e));
+        // 不暴露数据库内部信息给前端
+        return Result.error(ErrorCode.SYSTEM_ERROR).path(request.getRequestURI());
     }
 
-    /**
-     * 处理请求体格式错误
-     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public Result<?> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
-        log.error("请求体解析失败: {}", e.getMessage());
-        HttpServletRequest request = getRequest();
-        return Result.error(ErrorCode.PARAM_ERROR.getCode(), "请求参数格式错误，请检查JSON格式")
-                .path(request != null ? request.getRequestURI() : "");
+    public Result<?> handleHttpMessageNotReadableException(HttpMessageNotReadableException e, HttpServletRequest request) {
+        log.warn("请求体解析失败 [{}]", request.getRequestURI());
+        return Result.error(ErrorCode.PARAM_ERROR, "请求参数格式错误").path(request.getRequestURI());
     }
 
-
-    /**
-     * 处理请求方法不正确
-     */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public Result<?> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
-        log.error("请求方法不支持: {}", e.getMessage());
-        HttpServletRequest request = getRequest();
-        return Result.error(ErrorCode.PARAM_ERROR.getCode(), "请求方式不支持: " + e.getMethod())
-                .path(request != null ? request.getRequestURI() : "");
+    public Result<?> handleMethodNotSupportedException(HttpRequestMethodNotSupportedException e, HttpServletRequest request) {
+        log.warn("请求方法不支持 [{}]: {}", request.getRequestURI(), e.getMethod());
+        return Result.error(ErrorCode.PARAM_ERROR, "请求方式不支持: " + e.getMethod()).path(request.getRequestURI());
     }
-
+    @ExceptionHandler(Exception.class)
+    public Result<?> handleUnknownException(Exception e, HttpServletRequest request) {
+        log.error("未知异常 [{}]: {}", request.getRequestURI(), e.getMessage(), e);  // 这里保留堆栈
+        // TODO: 接入告警，如钉钉/企微机器人通知
+        return Result.error(ErrorCode.SYSTEM_ERROR).path(request.getRequestURI());
+    }
 
     /**
-     * 处理其他异常
+     * 提取异常摘要，避免日志过长
      */
-    @ExceptionHandler(Exception.class)
-    public Result<?> handleException(Exception e) {
-        log.error("系统异常: {}", e.getMessage(), e);
-        HttpServletRequest request = getRequest();
-        return Result.error(ErrorCode.SYSTEM_ERROR.getCode(), "系统繁忙，请稍后重试").path(request != null ? request.getRequestURI() : "");
-    }
-
-    private HttpServletRequest getRequest() {
-        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        return attributes != null ? attributes.getRequest() : null;
+    private String extractMessage(Exception e) {
+        return e.getMessage() != null && e.getMessage().length() > 200
+                ? e.getMessage().substring(0, 200) + "..."
+                : e.getMessage();
     }
 }

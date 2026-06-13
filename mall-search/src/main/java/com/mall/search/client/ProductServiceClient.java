@@ -3,9 +3,7 @@ package com.mall.search.client;
 import com.mall.common.response.Result;
 import com.mall.search.dto.ProductDTO;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -29,4 +27,13 @@ public interface ProductServiceClient {
      */
     @GetMapping("/ids/all")
     Result<List<Long>> getAllProductIds();
+
+    /**
+     *
+     *
+     * @param productIds
+     * @return
+     */
+    @PostMapping("/product/batch")
+    Result<List<ProductDTO>> getProductsByIds(@RequestBody List<Long> productIds);
 }

@@ -36,21 +36,25 @@ public class SearchServiceImpl implements SearchService {
     @Override
     public SearchResult searchProducts(SearchDTO searchDTO) {
         log.info("搜索商品: {}", searchDTO);
-
         Query searchQuery = buildSearchQuery(searchDTO);
-
         SearchHits<ProductDocument> searchHits = elasticsearchTemplate.search(searchQuery, ProductDocument.class);
-
         return convertToSearchResult(searchHits, searchDTO);
     }
 
     @Override
     public List<String> getSuggestions(String keyword) {
-        if (!StringUtils.hasText(keyword)) {
+        if (!StringUtils.hasText(keyword) || keyword.length() < 2) {
             return new ArrayList<>();
         }
         log.info("获取搜索建议: {}", keyword);
-        return new ArrayList<>();
+        Query query = new CriteriaQuery(new Criteria("name").contains(keyword));
+        query.setPageable(PageRequest.of(0, 5));
+        SearchHits<ProductDocument> hits = elasticsearchTemplate.search(query, ProductDocument.class);
+        return hits.getSearchHits().stream()
+                .map(hit -> hit.getContent().getName())
+                .distinct()
+                .limit(5)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -76,11 +80,19 @@ public class SearchServiceImpl implements SearchService {
             var response = productServiceClient.getAllProductIds();
             if (response.getCode() == 200 && response.getData() != null) {
                 List<Long> productIds = response.getData();
-                for (Long productId : productIds) {
+                // 分批处理，每批100个
+                for (int i = 0; i < productIds.size(); i += 100) {
+                    List<Long> batch = productIds.subList(i, Math.min(i + 100, productIds.size()));
                     try {
-                        syncProduct(productId);
+                        var batchResponse = productServiceClient.getProductsByIds(batch);
+                        if (batchResponse.getCode() == 200 && batchResponse.getData() != null) {
+                            List<ProductDocument> documents = batchResponse.getData().stream()
+                                    .map(this::convertToDocument)
+                                    .collect(Collectors.toList());
+                            productSearchRepository.saveAll(documents);
+                        }
                     } catch (Exception e) {
-                        log.error("同步商品失败: productId={}", productId, e);
+                        log.error("批量同步失败: batch={}", batch, e);
                     }
                 }
                 log.info("批量同步完成，共处理{}个商品", productIds.size());
@@ -97,11 +109,14 @@ public class SearchServiceImpl implements SearchService {
     }
 
     private Query buildSearchQuery(SearchDTO searchDTO) {
-        Criteria criteria = new Criteria();
+        Criteria criteria;
         if (StringUtils.hasText(searchDTO.getKeyword())) {
-            criteria = criteria.and("name").contains(searchDTO.getKeyword())
+            criteria = new Criteria("name").contains(searchDTO.getKeyword())
                     .or("description").contains(searchDTO.getKeyword());
+        } else {
+            criteria = new Criteria();
         }
+
         if (searchDTO.getCategoryId() != null) {
             criteria = criteria.and("categoryId").is(searchDTO.getCategoryId());
         }
